@@ -1,0 +1,30 @@
+name: iptv_player
+description: A cross-platform IPTV player application
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.19.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^2.17.0
+  firebase_auth: ^4.10.1
+  video_player: ^2.8.0
+  provider: ^6.0.5
+  network_info_plus: ^6.1.4
+  device_info_plus: ^10.0.0
+  shared_preferences: ^2.2.2
+  http: ^1.1.0
+  flutter_riverpod: ^2.4.9
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
