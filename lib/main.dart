@@ -1,33 +1,50 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
-import 'firebase_options.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:media_kit/media_kit.dart'; // ignore: depend_on_referenced_packages
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
-import 'services/auth_service.dart';
+import 'services/xtream_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
-  // Set system UI overlay style for TV
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.leanBack);
-  
+  MediaKit.ensureInitialized();
+
+  // Force landscape on TV/FireStick
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+  final prefs = await SharedPreferences.getInstance();
+  final xtreamService = XtreamService();
+
+  // Oturum türünü kontrol et: xtream veya m3u
+  final hasXtream = prefs.getString('xtream_server') != null;
+  final hasM3u = prefs.getString('m3u_active_url') != null;
+
+  if (hasXtream) await xtreamService.loadSavedPlaylist();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => AuthService(),
-      child: const MyApp(),
+    MultiProvider(
+      providers: [
+        Provider<XtreamService>.value(value: xtreamService),
+      ],
+      child: MyApp(
+        hasSession: hasXtream || hasM3u,
+        sessionType: hasXtream ? 'xtream' : hasM3u ? 'm3u' : null,
+      ),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool hasSession;
+  final String? sessionType;
+
+  const MyApp({super.key, required this.hasSession, this.sessionType});
 
   @override
   Widget build(BuildContext context) {
@@ -46,55 +63,19 @@ class MyApp extends StatelessWidget {
             primarySwatch: Colors.deepOrange,
             scaffoldBackgroundColor: Colors.black,
             appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.black,
+              backgroundColor: Color(0xFF1A1A2E),
               elevation: 0,
             ),
-            // Add TV-friendly text styles
-            textTheme: const TextTheme(
-              displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              displayMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              displaySmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              headlineMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              headlineSmall: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              titleLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
           ),
-          home: StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.deepOrange,
-                    ),
-                  ),
-                );
-              }
-              if (snapshot.hasData) {
-                return const HomeScreen();
-              }
-              return const LoginScreen();
-            },
+          home: hasSession
+              ? HomeScreen(sessionType: sessionType!)
+              : const LoginScreen(),
+          onGenerateRoute: (_) => PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const LoginScreen(),
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 300),
           ),
-          // Add TV-friendly page transitions
-          onGenerateRoute: (settings) {
-            return PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) {
-                switch (settings.name) {
-                  default:
-                    return const LoginScreen();
-                }
-              },
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: child,
-                );
-              },
-              transitionDuration: const Duration(milliseconds: 300),
-            );
-          },
         ),
       ),
     );

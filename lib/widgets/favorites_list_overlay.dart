@@ -75,8 +75,8 @@ class _FavoritesListOverlayState extends State<FavoritesListOverlay> {
     }
   }
 
-  void _handleKeyEvent(RawKeyEvent event) {
-    if (event is! RawKeyDownEvent) return;
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent) return;
 
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowDown:
@@ -140,7 +140,7 @@ class _FavoritesListOverlayState extends State<FavoritesListOverlay> {
       child: FocusTraversalGroup(
         policy: OrderedTraversalPolicy(),
         child: Scaffold(
-          backgroundColor: Colors.black.withOpacity(0.9),
+          backgroundColor: Colors.black.withValues(alpha: 0.9),
           appBar: AppBar(
             title: Text('Favorites (${_currentFavorites.length})'),
             backgroundColor: Colors.deepOrange,
@@ -179,9 +179,9 @@ class _FavoritesListOverlayState extends State<FavoritesListOverlay> {
                     style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 )
-              : RawKeyboardListener(
+              : KeyboardListener(
                   focusNode: FocusNode(),
-                  onKey: _handleKeyEvent,
+                  onKeyEvent: _handleKeyEvent,
                   child: ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16.0),
@@ -221,7 +221,7 @@ class _FavoritesListOverlayState extends State<FavoritesListOverlay> {
               width: 2.0,
             ),
             color: _itemFocusNodes[index].hasFocus
-                ? Colors.deepOrange.withOpacity(0.2)
+                ? Colors.deepOrange.withValues(alpha: 0.2)
                 : Colors.transparent,
           ),
           child: Row(

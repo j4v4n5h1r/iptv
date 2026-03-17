@@ -1,4 +1,3 @@
-// lib/widgets/channel_list_overlay.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/channel.dart';
@@ -24,31 +23,19 @@ class ChannelListOverlay extends StatefulWidget {
 class _ChannelListOverlayState extends State<ChannelListOverlay> {
   final TextEditingController _searchController = TextEditingController();
   List<Channel> _filteredChannels = [];
-  late FocusNode _searchFocusNode;
-  late FocusNode _closeButtonFocusNode;
-  final List<FocusNode> _listFocusNodes = [];
-  int _focusedIndex = -1; // -1 for search bar, 0 for close button, 1+ for list items
+  final FocusNode _searchFocusNode = FocusNode();
+  final FocusNode _keyboardFocusNode = FocusNode();
+  int _focusedIndex = -1;
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _searchFocusNode = FocusNode(debugLabel: 'SearchField');
-    _closeButtonFocusNode = FocusNode(debugLabel: 'CloseButton');
     _filteredChannels = widget.channels;
     _searchController.addListener(_filterChannels);
-    _initFocusNodes();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
-      _searchFocusNode.requestFocus();
+      _keyboardFocusNode.requestFocus();
     });
-  }
-
-  void _initFocusNodes() {
-    _listFocusNodes.clear();
-    _listFocusNodes.addAll(
-      List.generate(_filteredChannels.length, (index) => FocusNode())
-    );
   }
 
   @override
@@ -63,61 +50,60 @@ class _ChannelListOverlayState extends State<ChannelListOverlay> {
     final query = _searchController.text.toLowerCase();
     setState(() {
       _filteredChannels = widget.channels
-          .where((channel) => channel.name.toLowerCase().contains(query))
+          .where((c) => c.name.toLowerCase().contains(query))
           .toList();
-      _initFocusNodes();
+      _focusedIndex = _focusedIndex.clamp(-1, _filteredChannels.length - 1);
     });
   }
 
-  void _handleKeyEvent(RawKeyEvent event) {
-    if (event is! RawKeyDownEvent) return;
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowDown:
         if (_focusedIndex < _filteredChannels.length - 1) {
           setState(() => _focusedIndex++);
-          _requestFocusForCurrentIndex();
           _scrollToItem(_focusedIndex);
         }
-        break;
+        return KeyEventResult.handled;
+
       case LogicalKeyboardKey.arrowUp:
         if (_focusedIndex > 0) {
           setState(() => _focusedIndex--);
-          _requestFocusForCurrentIndex();
           _scrollToItem(_focusedIndex);
         } else if (_focusedIndex == 0) {
           setState(() => _focusedIndex = -1);
           _searchFocusNode.requestFocus();
         }
-        break;
+        return KeyEventResult.handled;
+
       case LogicalKeyboardKey.select:
       case LogicalKeyboardKey.enter:
-        if (_focusedIndex >= 0) {
+        if (_focusedIndex >= 0 && _focusedIndex < _filteredChannels.length) {
           widget.onChannelSelected(_filteredChannels[_focusedIndex]);
+        } else {
+          // Enter on search — move focus to list
+          setState(() => _focusedIndex = 0);
+          _scrollToItem(0);
         }
-        break;
-      case LogicalKeyboardKey.escape:
-        widget.onClose();
-        break;
-      default:
-        break;
-    }
-  }
+        return KeyEventResult.handled;
 
-  void _requestFocusForCurrentIndex() {
-    if (_focusedIndex >= 0 && _focusedIndex < _listFocusNodes.length) {
-      _listFocusNodes[_focusedIndex].requestFocus();
+      case LogicalKeyboardKey.escape:
+      case LogicalKeyboardKey.goBack:
+        widget.onClose();
+        return KeyEventResult.handled;
+
+      default:
+        return KeyEventResult.ignored;
     }
   }
 
   void _scrollToItem(int index) {
-    final double itemHeight = 72.0; // Approximate height of ListTile
-    final double scrollPosition = index * itemHeight;
-    
+    const itemHeight = 56.0;
     _scrollController.animateTo(
-      scrollPosition,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+      index * itemHeight,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
     );
   }
 
@@ -125,165 +111,101 @@ class _ChannelListOverlayState extends State<ChannelListOverlay> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
-    _closeButtonFocusNode.dispose();
-    for (var node in _listFocusNodes) {
-      node.dispose();
-    }
+    _keyboardFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Shortcuts(
-      shortcuts: {
-        LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
-        LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
-        LogicalKeySet(LogicalKeyboardKey.escape): const ActivateIntent(),
-      },
-      child: FocusTraversalGroup(
-        policy: OrderedTraversalPolicy(),
-        child: Scaffold(
-          backgroundColor: Colors.black.withOpacity(0.9),
-          body: RawKeyboardListener(
-            focusNode: FocusNode(),
-            onKey: _handleKeyEvent,
-            child: SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
+    return Focus(
+      focusNode: _keyboardFocusNode,
+      onKeyEvent: _handleKey,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    focusNode: _searchFocusNode,
+                    controller: _searchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Search...',
+                      hintStyle: const TextStyle(color: Colors.white54),
+                      prefixIcon: const Icon(Icons.search, color: Colors.deepOrange),
+                      filled: true,
+                      fillColor: Colors.grey[850],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                  onPressed: widget.onClose,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: _filteredChannels.length,
+              itemBuilder: (context, index) {
+                final channel = _filteredChannels[index];
+                final isFocused = _focusedIndex == index;
+                return GestureDetector(
+                  onTap: () => widget.onChannelSelected(channel),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    height: 56,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: isFocused
+                          ? Colors.deepOrange.withValues(alpha: 0.25)
+                          : Colors.transparent,
+                      border: Border(
+                        left: BorderSide(
+                          color: isFocused ? Colors.deepOrange : Colors.transparent,
+                          width: 3,
+                        ),
+                      ),
+                    ),
                     child: Row(
                       children: [
-                        Expanded(
-                          child: Focus(
-                            focusNode: _searchFocusNode,
-                            onFocusChange: (hasFocus) {
-                              if (hasFocus) setState(() => _focusedIndex = -1);
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: _searchFocusNode.hasFocus
-                                      ? Colors.deepOrange
-                                      : Colors.transparent,
-                                  width: 2.0,
-                                ),
-                              ),
-                              child: TextField(
-                                controller: _searchController,
-                                decoration: InputDecoration(
-                                  hintText: 'Search...',
-                                  hintStyle: const TextStyle(color: Colors.white54),
-                                  prefixIcon: const Icon(Icons.search, color: Colors.deepOrange),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.grey[800],
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 14,
-                                  ),
-                                ),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ),
+                        Icon(
+                          widget.isMovie ? Icons.movie : Icons.live_tv,
+                          color: isFocused ? Colors.deepOrange : Colors.white38,
+                          size: 20,
                         ),
-                        const SizedBox(width: 16),
-                        FocusableActionDetector(
-                          focusNode: _closeButtonFocusNode,
-                          onShowFocusHighlight: (hasFocus) {
-                            if (hasFocus) setState(() => _focusedIndex = -2);
-                          },
-                          actions: {
-                            ActivateIntent: CallbackAction<ActivateIntent>(
-                              onInvoke: (_) => widget.onClose(),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            channel.name,
+                            style: TextStyle(
+                              color: isFocused ? Colors.white : Colors.white70,
+                              fontSize: isFocused ? 15 : 14,
+                              fontWeight: isFocused ? FontWeight.bold : FontWeight.normal,
                             ),
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: _closeButtonFocusNode.hasFocus
-                                    ? Colors.deepOrange
-                                    : Colors.transparent,
-                                width: 2.0,
-                              ),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
-                              onPressed: widget.onClose,
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _filteredChannels.length,
-                      itemBuilder: (context, index) {
-                        final channel = _filteredChannels[index];
-                        return FocusableActionDetector(
-                          focusNode: _listFocusNodes[index],
-                          onShowFocusHighlight: (hasFocus) {
-                            if (hasFocus) setState(() => _focusedIndex = index);
-                          },
-                          actions: {
-                            ActivateIntent: CallbackAction<ActivateIntent>(
-                              onInvoke: (_) => widget.onChannelSelected(channel),
-                            ),
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: _listFocusNodes[index].hasFocus
-                                    ? Colors.deepOrange
-                                    : Colors.transparent,
-                                width: 2.0,
-                              ),
-                              color: _listFocusNodes[index].hasFocus
-                                  ? Colors.deepOrange.withOpacity(0.2)
-                                  : Colors.transparent,
-                            ),
-                            child: ListTile(
-                              leading: Icon(
-                                widget.isMovie ? Icons.movie : Icons.live_tv,
-                                color: Colors.deepOrange,
-                                size: 30,
-                              ),
-                              title: Text(
-                                channel.name,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: _listFocusNodes[index].hasFocus ? 18 : 16,
-                                  fontWeight: _listFocusNodes[index].hasFocus
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                              onTap: () => widget.onChannelSelected(channel),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
-        ),
+        ],
       ),
     );
   }

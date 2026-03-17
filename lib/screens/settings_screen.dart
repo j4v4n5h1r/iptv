@@ -1,10 +1,6 @@
-// lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:network_info_plus/network_info_plus.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,203 +10,169 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _deviceInfo = 'Getting device info...';
-  String _networkInfo = 'Getting network info...';
-  final FocusNode _logoutFocusNode = FocusNode();
-  final FocusNode _backButtonFocusNode = FocusNode();
+  String _appVersion = '1.0.0';
+  final _backFocus = FocusNode();
+  final _clearFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _getDeviceInfo();
-    _getNetworkInfo();
-    // Request focus after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
-      _logoutFocusNode.requestFocus();
+      _backFocus.requestFocus();
     });
   }
 
-  Future<void> _getDeviceInfo() async {
-    final deviceInfoPlugin = DeviceInfoPlugin();
-    String deviceInfoText;
-
-    try {
-      if (Theme.of(context).platform == TargetPlatform.android) {
-        final androidInfo = await deviceInfoPlugin.androidInfo;
-        deviceInfoText = 'Android: ${androidInfo.model}';
-      } else if (Theme.of(context).platform == TargetPlatform.iOS) {
-        final iosInfo = await deviceInfoPlugin.iosInfo;
-        deviceInfoText = 'iOS: ${iosInfo.name}';
-      } else {
-        deviceInfoText = 'Platform not supported';
-      }
-    } catch (e) {
-      deviceInfoText = 'Failed to get device info: $e';
-    }
-
-    if (mounted) {
-      setState(() {
-        _deviceInfo = deviceInfoText;
-      });
-    }
+  @override
+  void dispose() {
+    _backFocus.dispose();
+    _clearFocus.dispose();
+    super.dispose();
   }
 
-  Future<void> _getNetworkInfo() async {
-    final networkInfo = NetworkInfo();
-    String networkInfoText;
-
-    try {
-      final wifiIP = await networkInfo.getWifiIP();
-      final wifiName = await networkInfo.getWifiName();
-      networkInfoText = 'Wi-Fi Name: $wifiName\nIP Address: $wifiIP';
-    } catch (e) {
-      networkInfoText = 'Failed to get network info: $e';
-    }
-
+  Future<void> _clearCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('watchlist');
     if (mounted) {
-      setState(() {
-        _networkInfo = networkInfoText;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Watch history cleared')),
+      );
     }
-  }
-
-  void _handleLogout(BuildContext context) async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    await authService.signOut();
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      '/login',
-      (Route<dynamic> route) => false,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Shortcuts(
       shortcuts: {
+        LogicalKeySet(LogicalKeyboardKey.arrowDown): const NextFocusIntent(),
+        LogicalKeySet(LogicalKeyboardKey.arrowUp): const PreviousFocusIntent(),
         LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
         LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
-        LogicalKeySet(LogicalKeyboardKey.arrowUp): const DirectionalFocusIntent(TraversalDirection.up),
-        LogicalKeySet(LogicalKeyboardKey.arrowDown): const DirectionalFocusIntent(TraversalDirection.down),
       },
-      child: FocusTraversalGroup(
-        policy: OrderedTraversalPolicy(),
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Settings'),
-            leading: FocusableActionDetector(
-              focusNode: _backButtonFocusNode,
-              onShowFocusHighlight: (value) => setState(() {}),
-              actions: <Type, Action<Intent>>{
-                ActivateIntent: CallbackAction<ActivateIntent>(
-                  onInvoke: (ActivateIntent intent) => Navigator.pop(context),
-                ),
-              },
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
-                style: IconButton.styleFrom(
-                  backgroundColor: _backButtonFocusNode.hasFocus
-                      ? Colors.deepOrange.withOpacity(0.3)
-                      : null,
-                ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0A0A0A),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1A1A2E),
+          title: const Text('Settings', style: TextStyle(color: Colors.white)),
+          leading: FocusableActionDetector(
+            focusNode: _backFocus,
+            onShowFocusHighlight: (_) => setState(() {}),
+            actions: {
+              ActivateIntent: CallbackAction<ActivateIntent>(
+                onInvoke: (_) => Navigator.pop(context),
+              ),
+            },
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+              style: IconButton.styleFrom(
+                backgroundColor: _backFocus.hasFocus
+                    ? Colors.deepOrange.withValues(alpha: 0.3)
+                    : null,
               ),
             ),
           ),
-          body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Device Information',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // App info
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A2E),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 8.0),
-                Text(
-                  _deviceInfo,
-                  style: const TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(height: 16.0),
-                Text(
-                  'Network Information',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 8.0),
-                Text(
-                  _networkInfo,
-                  style: const TextStyle(color: Colors.white70),
-                ),
-                const Spacer(),
-                Center(
-                  child: FocusableActionDetector(
-                    focusNode: _logoutFocusNode,
-                    onShowFocusHighlight: (value) => setState(() {}),
-                    actions: <Type, Action<Intent>>{
-                      ActivateIntent: CallbackAction<ActivateIntent>(
-                        onInvoke: (ActivateIntent intent) => _handleLogout(context),
-                      ),
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 100),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: _logoutFocusNode.hasFocus
-                            ? Border.all(color: Colors.white, width: 2)
-                            : null,
-                        boxShadow: _logoutFocusNode.hasFocus
-                            ? [
-                                BoxShadow(
-                                  color: Colors.deepOrange.withOpacity(0.5),
-                                  spreadRadius: 2,
-                                  blurRadius: 5,
-                                  offset: const Offset(0, 0),
-                                )
-                              ]
-                            : null,
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () => _handleLogout(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _logoutFocusNode.hasFocus
-                              ? Colors.deepOrange.shade700
-                              : Colors.deepOrange,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.connected_tv, color: Colors.deepOrange, size: 36),
+                    const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Wallyt IPTV',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        child: const Text(
-                          'Logout',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        Text(
+                          'v$_appVersion',
+                          style: const TextStyle(color: Colors.white38, fontSize: 13),
                         ),
-                      ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              const Text(
+                'Storage',
+                style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 1.2),
+              ),
+              const SizedBox(height: 8),
+
+              // Clear watch history
+              FocusableActionDetector(
+                focusNode: _clearFocus,
+                onShowFocusHighlight: (_) => setState(() {}),
+                actions: {
+                  ActivateIntent: CallbackAction<ActivateIntent>(
+                    onInvoke: (_) => _clearCache(),
+                  ),
+                },
+                child: InkWell(
+                  onTap: _clearCache,
+                  borderRadius: BorderRadius.circular(10),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 100),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A2E),
+                      borderRadius: BorderRadius.circular(10),
+                      border: _clearFocus.hasFocus
+                          ? Border.all(color: Colors.deepOrange, width: 1.5)
+                          : Border.all(color: Colors.white12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.history, color: Colors.white70),
+                        SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Clear Watch History',
+                                  style: TextStyle(color: Colors.white, fontSize: 14)),
+                              Text('Remove all recently watched channels',
+                                  style: TextStyle(color: Colors.white38, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: Colors.white24),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
-              ],
-            ),
+              ),
+
+              const Spacer(),
+              Center(
+                child: Text(
+                  'Wallyt IPTV Player',
+                  style: TextStyle(color: Colors.white12, fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _logoutFocusNode.dispose();
-    _backButtonFocusNode.dispose();
-    super.dispose();
   }
 }

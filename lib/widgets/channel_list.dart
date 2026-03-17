@@ -60,8 +60,8 @@ class _ChannelListState extends State<ChannelList> {
     }
   }
 
-  void _handleKeyEvent(RawKeyEvent event) {
-    if (event is! RawKeyDownEvent) return;
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent) return;
 
     final int crossAxisCount = 4;
     int newIndex = _focusedIndex;
@@ -138,9 +138,9 @@ class _ChannelListState extends State<ChannelList> {
       },
       child: Focus(
         focusNode: widget.focusNode,
-        child: RawKeyboardListener(
+        child: KeyboardListener(
           focusNode: FocusNode(),
-          onKey: _handleKeyEvent,
+          onKeyEvent: _handleKeyEvent,
           child: GridView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.all(16.0),
@@ -176,7 +176,7 @@ class _ChannelListState extends State<ChannelList> {
                     boxShadow: _itemFocusNodes[index].hasFocus
                         ? [
                             BoxShadow(
-                              color: Colors.deepOrange.withOpacity(0.5),
+                              color: Colors.deepOrange.withValues(alpha: 0.5),
                               spreadRadius: 2,
                               blurRadius: 8,
                               offset: const Offset(0, 2),
@@ -185,7 +185,7 @@ class _ChannelListState extends State<ChannelList> {
                         : null,
                   ),
                   child: Material(
-                    color: Colors.black.withOpacity(0.8),
+                    color: Colors.black.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(8.0),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8.0),
