@@ -75,12 +75,60 @@ class M3uService {
   // --- Fetch + parse ---
 
   static Future<List<Channel>?> fetchAndParse(String url) async {
+    // Farklı User-Agent'lar ile dene — bazı sunucular VLC'yi reddeder
+    final userAgents = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      'VLC/3.0.18 LibVLC/3.0.18',
+      'Dalvik/2.1.0 (Linux; Android 10)',
+      '',
+    ];
+
+    for (final ua in userAgents) {
+      final result = await _tryFetch(url, ua);
+      if (result != null) return result; // başarılı veya auth error (boş liste)
+    }
+    return null; // tüm denemeler başarısız
+  }
+
+  static Future<List<Channel>?> _tryFetch(String url, String userAgent) async {
     try {
       final uri = Uri.parse(url.trim());
-      final res = await http.get(uri).timeout(const Duration(seconds: 20));
+      final headers = <String, String>{'Accept': '*/*'};
+      if (userAgent.isNotEmpty) headers['User-Agent'] = userAgent;
+
+      http.Response res = await http.get(uri, headers: headers)
+          .timeout(const Duration(seconds: 20));
+
+      // Redirect takibi
+      if ((res.statusCode == 301 || res.statusCode == 302 ||
+           res.statusCode == 307 || res.statusCode == 308) &&
+          res.headers.containsKey('location')) {
+        final location = res.headers['location']!;
+        final redirect = location.startsWith('http')
+            ? Uri.parse(location)
+            : uri.resolve(location);
+        res = await http.get(redirect, headers: headers)
+            .timeout(const Duration(seconds: 20));
+      }
+
+      if (res.statusCode == 401 || res.statusCode == 403) {
+        return null; // bu UA ile auth hatası — diğer UA'yı dene
+      }
+
       if (res.statusCode == 200) {
         final body = utf8.decode(res.bodyBytes, allowMalformed: true);
-        if (body.contains('#EXTM3U') || body.contains('#EXTINF')) {
+        final trimmed = body.trim();
+
+        // JSON auth error
+        if (trimmed.startsWith('{') &&
+            (trimmed.contains('"auth":0') ||
+             trimmed.contains('"auth": 0') ||
+             trimmed.contains('"status":"Disabled"') ||
+             trimmed.contains('"status":"Expired"'))) {
+          return const []; // kesin auth error — denemeyi durdur
+        }
+
+        if (trimmed.contains('#EXTM3U') || trimmed.contains('#EXTINF')) {
           return parseM3u(body);
         }
       }
@@ -89,10 +137,18 @@ class M3uService {
   }
 
   // --- Validate ---
-
+  // Returns: null = network/parse error, empty list = auth error, non-empty = OK
   static Future<bool> validate(String url) async {
     final result = await fetchAndParse(url);
     return result != null && result.isNotEmpty;
+  }
+
+  static Future<bool?> validateWithReason(String url) async {
+    return fetchAndParse(url).then((result) {
+      if (result == null) return null;      // network error
+      if (result.isEmpty) return false;     // auth error (401/403)
+      return true;                          // success
+    });
   }
 
   // --- Groups (categories) from channel list ---

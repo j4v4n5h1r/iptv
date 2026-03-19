@@ -159,6 +159,7 @@ class XtreamService {
             epgChannelId: s['epg_channel_id'],
             streamId: id,
             streamType: 'live',
+            tvArchive: (s['tv_archive'] == 1 || s['tv_archive'] == true),
           );
         }).toList();
       }
@@ -232,6 +233,36 @@ class XtreamService {
             description: utf8.decode(base64.decode(e['description'] ?? '')),
             start: start,
             end: end,
+          );
+        }).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// 7 günlük tam EPG (get_simple_data_table)
+  Future<List<EpgProgram>> getFullEpg(String streamId) async {
+    try {
+      final url = '$_serverUrl/player_api.php?username=$_username&password=$_password'
+          '&action=get_simple_data_table&stream_id=$streamId';
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final List epgList = data['epg_listings'] ?? [];
+        return epgList.map((e) {
+          DateTime parseTime(String? raw) {
+            if (raw == null || raw.isEmpty) return DateTime.now();
+            try { return DateTime.parse(raw); } catch (_) { return DateTime.now(); }
+          }
+          String decode(String? s) {
+            if (s == null || s.isEmpty) return '';
+            try { return utf8.decode(base64.decode(s)); } catch (_) { return s; }
+          }
+          return EpgProgram(
+            title: decode(e['title']),
+            description: decode(e['description']),
+            start: parseTime(e['start']),
+            end: parseTime(e['end']),
           );
         }).toList();
       }

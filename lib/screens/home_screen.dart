@@ -6,10 +6,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/xtream_service.dart';
 import '../services/m3u_service.dart';
+import '../services/app_settings.dart';
+import '../services/app_localizations.dart';
+import '../services/update_service.dart';
 import '../models/channel.dart';
 import 'player_screen.dart';
 import 'series_screen.dart';
 import 'settings_screen.dart';
+import 'playlists_screen.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -87,7 +91,37 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _loadFavorites();
       _loadWatchlist();
       _loadInitial();
+      _checkUpdate();
     });
+  }
+
+  Future<void> _checkUpdate() async {
+    final info = await UpdateService.checkForUpdate();
+    if (info == null || !mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text('Update Available  v${info.version}',
+            style: const TextStyle(color: Colors.white)),
+        content: Text(
+          info.releaseNotes.isNotEmpty ? info.releaseNotes : 'A new version is available.',
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+          maxLines: 6,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Later', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK', style: TextStyle(color: Colors.deepOrange)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadInitial() async {
@@ -208,6 +242,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _onCategoryTap(String? catId) {
+    if (catId != null) {
+      final settings = Provider.of<AppSettings>(context, listen: false);
+      if (settings.isCategoryLocked(catId)) {
+        _showParentalPinDialog(() => _doSelectCategory(catId));
+        return;
+      }
+    }
+    _doSelectCategory(catId);
+  }
+
+  void _doSelectCategory(String? catId) {
     if (_isM3u) {
       setState(() => _selectedM3uGroup = catId);
       return;
@@ -219,6 +264,59 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     } else {
       _loadSeriesList(catId);
     }
+  }
+
+  void _showParentalPinDialog(VoidCallback onSuccess) {
+    final settings = Provider.of<AppSettings>(context, listen: false);
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: const Text('Enter PIN', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          obscureText: true,
+          maxLength: 4,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white, fontSize: 22, letterSpacing: 8),
+          decoration: const InputDecoration(
+            counterText: '',
+            hintText: '• • • •',
+            hintStyle: TextStyle(color: Colors.white24),
+            filled: true,
+            fillColor: Color(0xFF0A0A0A),
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) {
+            Navigator.pop(ctx);
+            if (v == settings.parentalPin) {
+              onSuccess();
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Wrong PIN')));
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (ctrl.text == settings.parentalPin) {
+                onSuccess();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Wrong PIN')));
+              }
+            },
+            child: const Text('OK', style: TextStyle(color: Colors.deepOrange))),
+        ],
+      ),
+    );
   }
 
   void _onChannelTap(Channel channel) {
@@ -365,38 +463,45 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppL10n(Provider.of<AppSettings>(context).language);
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A1A2E),
         leading: const Padding(
           padding: EdgeInsets.only(left: 8),
           child: Icon(Icons.connected_tv, color: Colors.deepOrange),
         ),
-        title: const Text('Wallyt IPTV', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(l10n.get('app_name'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.deepOrange,
           labelColor: Colors.deepOrange,
           unselectedLabelColor: Colors.white54,
           tabs: _isM3u
-              ? const [
-                  Tab(icon: Icon(Icons.tv), text: 'Channels'),
-                  Tab(icon: Icon(Icons.favorite), text: 'Favorites'),
-                  Tab(icon: Icon(Icons.history), text: 'Recents'),
+              ? [
+                  Tab(icon: const Icon(Icons.tv), text: l10n.get('tab_channels')),
+                  Tab(icon: const Icon(Icons.favorite), text: l10n.get('tab_favorites')),
+                  Tab(icon: const Icon(Icons.history), text: l10n.get('tab_recents')),
                 ]
-              : const [
-                  Tab(icon: Icon(Icons.live_tv), text: 'Live'),
-                  Tab(icon: Icon(Icons.movie), text: 'Movies'),
-                  Tab(icon: Icon(Icons.tv), text: 'Series'),
-                  Tab(icon: Icon(Icons.favorite), text: 'Favorites'),
-                  Tab(icon: Icon(Icons.history), text: 'Recents'),
+              : [
+                  Tab(icon: const Icon(Icons.live_tv), text: l10n.get('tab_live')),
+                  Tab(icon: const Icon(Icons.movie), text: l10n.get('tab_movies')),
+                  Tab(icon: const Icon(Icons.tv), text: l10n.get('tab_series')),
+                  Tab(icon: const Icon(Icons.favorite), text: l10n.get('tab_favorites')),
+                  Tab(icon: const Icon(Icons.history), text: l10n.get('tab_recents')),
                 ],
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.playlist_play, color: Colors.white70),
+            tooltip: 'Playlists',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlaylistsScreen())),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings, color: Colors.white70),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ).then((_) => _loadWatchlist()),
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white70),
@@ -432,11 +537,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       controller: _searchController,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        hintText: 'Search...',
+                        hintText: l10n.get('search'),
                         hintStyle: const TextStyle(color: Colors.white38),
                         prefixIcon: const Icon(Icons.search, color: Colors.white38),
                         filled: true,
-                        fillColor: const Color(0xFF1E1E1E),
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide.none,

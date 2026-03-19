@@ -3,8 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:provider/provider.dart';
 import '../widgets/channel_list_overlay.dart';
 import '../models/channel.dart';
+import '../services/app_settings.dart';
+import '../services/pip_service.dart';
+import '../services/xtream_service.dart';
+import 'epg_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
   final Channel channel;
@@ -32,7 +37,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _showControls = true;
   bool _showChannelList = false;
   bool _isBuffering = false;
-  bool _showOsd = false;        // OSD: kanal değişince kısa süre gösterim
+  bool _showOsd = false;
+
+  // Timeshift
+  bool _isTimeshifted = false;
+  bool _isScrubbing = false;
+  double _scrubValue = 0.0;
+
+  // Player pozisyonu state'de tutulur — StreamBuilder rebuild race condition'ını önler
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<Duration>? _durationSub;
 
   Timer? _hideControlsTimer;
   Timer? _osdTimer;
@@ -50,6 +66,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (mounted) setState(() => _isBuffering = buffering);
     });
 
+    _positionSub = _player.stream.position.listen((pos) {
+      if (mounted && !_isScrubbing) setState(() => _position = pos);
+    });
+
+    _durationSub = _player.stream.duration.listen((dur) {
+      if (mounted) setState(() => _duration = dur);
+    });
+
     _openMedia(_currentChannel.url);
     _resetHideTimer();
 
@@ -60,7 +84,53 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _openMedia(String url) {
+    final settings = Provider.of<AppSettings>(context, listen: false);
+    _player.open(Media(settings.resolveStreamUrl(url)));
+  }
+
+  void _openEpg() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => EpgScreen(channel: _currentChannel)),
+    );
+  }
+
+  void _startTimeshift() {
+    if (_currentChannel.streamId == null) return;
+    final xtream = Provider.of<XtreamService>(context, listen: false);
+    if (xtream.serverUrl == null) return;
+
+    final start = DateTime.now().toUtc().subtract(const Duration(minutes: 30));
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final startStr =
+        '${start.year}-${pad(start.month)}-${pad(start.day)}:${pad(start.hour)}-${pad(start.minute)}';
+    final url =
+        '${xtream.serverUrl}/timeshift/${xtream.username}/${xtream.password}/60/$startStr/${_currentChannel.streamId}.ts';
+
+    setState(() => _isTimeshifted = true);
     _player.open(Media(url));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Timeshift loading...'), duration: Duration(seconds: 2)),
+    );
+
+    // 10 saniye içinde oynatma başlamazsa live'a geri dön
+    Future.delayed(const Duration(seconds: 10), () {
+      if (!mounted || !_isTimeshifted) return;
+      if (!_player.state.playing) {
+        _stopTimeshift();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Timeshift not available on this channel')),
+          );
+        }
+      }
+    });
+  }
+
+  void _stopTimeshift() {
+    setState(() => _isTimeshifted = false);
+    _openMedia(_currentChannel.url);
   }
 
   void _changeChannel(Channel channel) {
@@ -86,6 +156,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  void _toggleControls() {
+    if (_isScrubbing) return; // slider sürüklenirken toggle yapma
+    if (_showControls) {
+      _hideControlsTimer?.cancel();
+      setState(() => _showControls = false);
+    } else {
+      setState(() => _showControls = true);
+      _resetHideTimer();
+    }
+  }
+
   void _showControlsTemp() {
     setState(() => _showControls = true);
     _resetHideTimer();
@@ -96,65 +177,53 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     _showControlsTemp();
 
-    switch (event.logicalKey) {
-      case LogicalKeyboardKey.goBack:
-      case LogicalKeyboardKey.escape:
-        if (_showChannelList) {
-          setState(() => _showChannelList = false);
-        } else {
-          Navigator.pop(context);
-        }
-        return KeyEventResult.handled;
-
-      case LogicalKeyboardKey.select:
-      case LogicalKeyboardKey.enter:
-      case LogicalKeyboardKey.mediaPlayPause:
-        if (!_showChannelList) {
-          _player.playOrPause();
-        }
-        return KeyEventResult.handled;
-
-      case LogicalKeyboardKey.arrowLeft:
-      case LogicalKeyboardKey.mediaRewind:
-        if (!_showChannelList) {
-          final pos = _player.state.position;
-          _player.seek(pos - const Duration(seconds: 10));
-        }
-        return KeyEventResult.handled;
-
-      case LogicalKeyboardKey.arrowRight:
-      case LogicalKeyboardKey.mediaFastForward:
-        if (!_showChannelList) {
-          final pos = _player.state.position;
-          _player.seek(pos + const Duration(seconds: 10));
-        }
-        return KeyEventResult.handled;
-
-      case LogicalKeyboardKey.arrowUp:
-        if (!_showChannelList) {
-          // Channel up: previous in list
-          final idx = widget.channels.indexWhere((c) => c.url == _currentChannel.url);
-          if (idx > 0) _changeChannel(widget.channels[idx - 1]);
-        }
-        return KeyEventResult.handled;
-
-      case LogicalKeyboardKey.arrowDown:
-        if (!_showChannelList) {
-          // Channel down: next in list
-          final idx = widget.channels.indexWhere((c) => c.url == _currentChannel.url);
-          if (idx < widget.channels.length - 1) _changeChannel(widget.channels[idx + 1]);
-        }
-        return KeyEventResult.handled;
-
-      default:
-        return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.goBack || key == LogicalKeyboardKey.escape) {
+      if (_showChannelList) {
+        setState(() => _showChannelList = false);
+      } else {
+        Navigator.pop(context);
+      }
+      return KeyEventResult.handled;
+    } else if (key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.mediaPlayPause) {
+      if (!_showChannelList) _player.playOrPause();
+      return KeyEventResult.handled;
+    } else if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.mediaRewind) {
+      if (!_showChannelList) {
+        _player.seek(_player.state.position - const Duration(seconds: 10));
+      }
+      return KeyEventResult.handled;
+    } else if (key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.mediaFastForward) {
+      if (!_showChannelList) {
+        _player.seek(_player.state.position + const Duration(seconds: 10));
+      }
+      return KeyEventResult.handled;
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      if (!_showChannelList) {
+        final idx = widget.channels.indexWhere((c) => c.url == _currentChannel.url);
+        if (idx > 0) _changeChannel(widget.channels[idx - 1]);
+      }
+      return KeyEventResult.handled;
+    } else if (key == LogicalKeyboardKey.arrowDown) {
+      if (!_showChannelList) {
+        final idx = widget.channels.indexWhere((c) => c.url == _currentChannel.url);
+        if (idx < widget.channels.length - 1) _changeChannel(widget.channels[idx + 1]);
+      }
+      return KeyEventResult.handled;
     }
+    return KeyEventResult.ignored;
   }
 
   @override
   void dispose() {
     _hideControlsTimer?.cancel();
     _osdTimer?.cancel();
+    _positionSub?.cancel();
+    _durationSub?.cancel();
     _player.dispose();
     _playerFocusNode.dispose();
     super.dispose();
@@ -169,7 +238,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         autofocus: true,
         onKeyEvent: _handleKey,
         child: GestureDetector(
-          onTap: _showControlsTemp,
+          behavior: HitTestBehavior.translucent,
+          onTap: _toggleControls,
           child: Stack(
             children: [
               // Video
@@ -191,7 +261,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               if (_showControls && !_showChannelList)
                 _buildControlsOverlay(),
 
-              // OSD — kanal değişince kısa gösterim
+              // OSD
               if (_showOsd && !_showControls && !_showChannelList)
                 _buildOsd(),
 
@@ -199,10 +269,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
               if (_showChannelList)
                 _buildChannelListOverlay(),
 
-              // Channel list FAB (always visible)
+              // Channel list FAB
               if (!_showChannelList)
                 Positioned(
-                  bottom: 20,
+                  bottom: 80,
                   right: 20,
                   child: FloatingActionButton.extended(
                     onPressed: () {
@@ -213,6 +283,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     icon: const Icon(Icons.list),
                     backgroundColor: Colors.deepOrange,
                   ),
+                ),
+
+              // Progress bar
+              if (widget.isMovie && _showControls && !_showChannelList)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildProgressBar(),
                 ),
             ],
           ),
@@ -242,9 +321,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Positioned(
             top: 16,
             left: 16,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-              onPressed: () => Navigator.pop(context),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.picture_in_picture_alt, color: Colors.white, size: 24),
+                  tooltip: 'Picture in Picture',
+                  onPressed: () => PipService.enterPip(),
+                ),
+              ],
             ),
           ),
 
@@ -266,23 +354,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ),
           ),
 
-          // Favorite button
+          // Favorite + EPG buttons
           Positioned(
             top: 8,
             right: 8,
-            child: IconButton(
-              icon: Icon(
-                _currentChannel.isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: _currentChannel.isFavorite ? Colors.red : Colors.white,
-                size: 28,
-              ),
-              onPressed: () {
-                final updated = _currentChannel.copyWith(
-                  isFavorite: !_currentChannel.isFavorite,
-                );
-                setState(() => _currentChannel = updated);
-                widget.onFavoriteToggled(updated);
-              },
+            child: Row(
+              children: [
+                if (!widget.isMovie && _currentChannel.streamId != null)
+                  IconButton(
+                    icon: const Icon(Icons.calendar_today, color: Colors.white, size: 24),
+                    tooltip: 'Programme Guide',
+                    onPressed: _openEpg,
+                  ),
+                IconButton(
+                  icon: Icon(
+                    _currentChannel.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: _currentChannel.isFavorite ? Colors.red : Colors.white,
+                    size: 28,
+                  ),
+                  onPressed: () {
+                    final updated = _currentChannel.copyWith(
+                      isFavorite: !_currentChannel.isFavorite,
+                    );
+                    setState(() => _currentChannel = updated);
+                    widget.onFavoriteToggled(updated);
+                  },
+                ),
+              ],
             ),
           ),
 
@@ -315,55 +413,34 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ),
           ),
 
-          // Progress bar (for VOD)
-          if (widget.isMovie)
+          // Timeshift button (live only)
+          if (!widget.isMovie && _currentChannel.streamId != null)
             Positioned(
-              bottom: 56,
+              bottom: 16,
               left: 16,
-              right: 16,
-              child: StreamBuilder<Duration>(
-                stream: _player.stream.position,
-                builder: (context, posSnap) {
-                  return StreamBuilder<Duration>(
-                    stream: _player.stream.duration,
-                    builder: (context, durSnap) {
-                      final pos = posSnap.data ?? Duration.zero;
-                      final dur = durSnap.data ?? Duration.zero;
-                      final progress = dur.inMilliseconds > 0
-                          ? pos.inMilliseconds / dur.inMilliseconds
-                          : 0.0;
-                      return Column(
-                        children: [
-                          SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              trackHeight: 3,
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                              overlayShape: SliderComponentShape.noOverlay,
-                            ),
-                            child: Slider(
-                              value: progress.clamp(0.0, 1.0),
-                              onChanged: (v) {
-                                final seek = Duration(milliseconds: (v * dur.inMilliseconds).toInt());
-                                _player.seek(seek);
-                              },
-                              activeColor: Colors.deepOrange,
-                              inactiveColor: Colors.white30,
-                            ),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(_formatDuration(pos), style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                              Text(_formatDuration(dur), style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
+              child: _isTimeshifted
+                  ? ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepOrange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      icon: const Icon(Icons.live_tv, size: 18),
+                      label: const Text('Go Live'),
+                      onPressed: _stopTimeshift,
+                    )
+                  : OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white38),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      icon: const Icon(Icons.history, size: 18),
+                      label: const Text('Timeshift'),
+                      onPressed: _startTimeshift,
+                    ),
             ),
+
         ],
       ),
     );
@@ -511,6 +588,70 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBar() {
+    // State değişkenlerini doğrudan kullan — StreamBuilder yok
+    // Bu sayede: controls kapanıp açılınca sıfırlanmaz, rebuild race condition yok
+    final dur = _duration;
+    final playerProgress =
+        dur.inMilliseconds > 0 ? _position.inMilliseconds / dur.inMilliseconds : 0.0;
+
+    final displayValue = _isScrubbing ? _scrubValue : playerProgress.clamp(0.0, 1.0);
+
+    final displayPos = _isScrubbing && dur.inMilliseconds > 0
+        ? Duration(milliseconds: (_scrubValue * dur.inMilliseconds).toInt())
+        : _position;
+
+    return GestureDetector(
+      onTap: () {}, // parent _toggleControls'u engelle
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.6),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 4,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+              ),
+              child: Slider(
+                value: displayValue.clamp(0.0, 1.0),
+                onChangeStart: (v) {
+                  _isScrubbing = true;
+                  _scrubValue = v;
+                  _hideControlsTimer?.cancel();
+                },
+                onChanged: (v) {
+                  setState(() => _scrubValue = v);
+                },
+                onChangeEnd: (v) {
+                  if (dur.inMilliseconds > 0) {
+                    _player.seek(
+                        Duration(milliseconds: (v * dur.inMilliseconds).toInt()));
+                  }
+                  _isScrubbing = false;
+                  _resetHideTimer();
+                },
+                activeColor: Colors.deepOrange,
+                inactiveColor: Colors.white30,
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(_formatDuration(displayPos),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(_formatDuration(dur),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+          ],
         ),
       ),
     );

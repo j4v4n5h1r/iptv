@@ -11,6 +11,7 @@ class Channel {
   final String? streamId;
   final String? containerExtension;
   final String? streamType; // live, movie, series
+  final bool? tvArchive;    // catch-up destekli mi?
 
   const Channel({
     required this.name,
@@ -25,6 +26,7 @@ class Channel {
     this.streamId,
     this.containerExtension,
     this.streamType,
+    this.tvArchive,
   });
 
   Channel copyWith({
@@ -40,6 +42,7 @@ class Channel {
     String? streamId,
     String? containerExtension,
     String? streamType,
+    bool? tvArchive,
   }) {
     return Channel(
       name: name ?? this.name,
@@ -54,6 +57,7 @@ class Channel {
       streamId: streamId ?? this.streamId,
       containerExtension: containerExtension ?? this.containerExtension,
       streamType: streamType ?? this.streamType,
+      tvArchive: tvArchive ?? this.tvArchive,
     );
   }
 
@@ -70,6 +74,7 @@ class Channel {
         'streamId': streamId,
         'containerExtension': containerExtension,
         'streamType': streamType,
+        'tvArchive': tvArchive,
       };
 
   factory Channel.fromJson(Map<String, dynamic> json) => Channel(
@@ -85,6 +90,7 @@ class Channel {
         streamId: json['streamId'],
         containerExtension: json['containerExtension'],
         streamType: json['streamType'],
+        tvArchive: json['tvArchive'],
       );
 
   @override
