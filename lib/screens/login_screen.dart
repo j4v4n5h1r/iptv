@@ -7,6 +7,7 @@ import '../services/m3u_service.dart';
 import '../services/app_settings.dart';
 import '../services/app_localizations.dart';
 import '../models/channel.dart';
+import '../widgets/tv_keyboard.dart';
 import 'home_screen.dart';
 import 'player_screen.dart';
 import 'playlists_screen.dart';
@@ -205,41 +206,54 @@ class _LoginScreenState extends State<LoginScreen>
     FocusNode? nextFocus,
   }) {
     return ListenableBuilder(
-      listenable: focusNode,
+      listenable: Listenable.merge([focusNode, controller]),
       builder: (context, _) {
         final focused = focusNode.hasFocus;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: focused ? Border.all(color: Colors.deepOrange, width: 2) : null,
-          ),
-          child: TextField(
-            controller: controller,
-            focusNode: focusNode,
-            obscureText: obscure,
-            keyboardType: keyboard,
-            textInputAction: nextFocus != null ? TextInputAction.next : TextInputAction.done,
-            style: const TextStyle(color: Colors.white),
-            onEditingComplete: () {
-              if (nextFocus != null) {
-                nextFocus.requestFocus();
-              } else {
-                focusNode.unfocus();
-              }
-            },
-            decoration: InputDecoration(
-              labelText: label,
-              labelStyle: const TextStyle(color: Colors.white70),
-              filled: true,
-              fillColor: Colors.grey[850],
-              border: OutlineInputBorder(
+        return Focus(
+          focusNode: focusNode,
+          onKeyEvent: (node, event) {
+            if (event is KeyDownEvent &&
+                (event.logicalKey == LogicalKeyboardKey.select ||
+                 event.logicalKey == LogicalKeyboardKey.enter ||
+                 event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+              showTvKeyboard(context, controller, label, obscure: obscure);
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: GestureDetector(
+            onTap: () => showTvKeyboard(context, controller, label, obscure: obscure),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
+                border: focused ? Border.all(color: Colors.deepOrange, width: 2) : null,
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              suffixIcon: suffix,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.grey[850],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        controller.text.isEmpty
+                            ? label
+                            : (obscure ? '•' * controller.text.length : controller.text),
+                        style: TextStyle(
+                          color: controller.text.isEmpty ? Colors.white38 : Colors.white,
+                          fontSize: 16,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    if (suffix != null) suffix,
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -293,6 +307,7 @@ class _LoginScreenState extends State<LoginScreen>
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 24),
           _buildTextField(
@@ -338,6 +353,7 @@ class _LoginScreenState extends State<LoginScreen>
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 24),
           _buildTextField(
@@ -410,41 +426,55 @@ class _LoginScreenState extends State<LoginScreen>
                   const SizedBox(height: 24),
 
                   // Tabs
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 32),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A2E),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: TabBar(
-                      controller: _tabController,
-                      indicatorColor: Colors.deepOrange,
-                      labelColor: Colors.deepOrange,
-                      unselectedLabelColor: Colors.white38,
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      dividerColor: Colors.transparent,
-                      tabs: const [
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.dns, size: 16),
-                              SizedBox(width: 6),
-                              Text('Xtream Codes'),
-                            ],
+                  Focus(
+                    onKeyEvent: (node, event) {
+                      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                      if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                        _tabController.animateTo(0);
+                        return KeyEventResult.handled;
+                      }
+                      if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                        _tabController.animateTo(1);
+                        return KeyEventResult.handled;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 32),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A2E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        indicatorColor: Colors.deepOrange,
+                        labelColor: Colors.deepOrange,
+                        unselectedLabelColor: Colors.white38,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        dividerColor: Colors.transparent,
+                        tabs: const [
+                          Tab(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.dns, size: 16),
+                                SizedBox(width: 6),
+                                Text('Xtream Codes'),
+                              ],
+                            ),
                           ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.link, size: 16),
-                              SizedBox(width: 6),
-                              Text('M3U URL'),
-                            ],
+                          Tab(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.link, size: 16),
+                                SizedBox(width: 6),
+                                Text('M3U URL'),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
 
