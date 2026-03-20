@@ -203,7 +203,6 @@ class _LoginScreenState extends State<LoginScreen>
     bool obscure = false,
     TextInputType keyboard = TextInputType.text,
     Widget? suffix,
-    FocusNode? nextFocus,
   }) {
     return ListenableBuilder(
       listenable: Listenable.merge([focusNode, controller]),
@@ -315,14 +314,12 @@ class _LoginScreenState extends State<LoginScreen>
             focusNode: _serverFocus,
             label: l10n.get('login_server'),
             keyboard: TextInputType.url,
-            nextFocus: _userFocus,
           ),
           const SizedBox(height: 12),
           _buildTextField(
             controller: _userCtrl,
             focusNode: _userFocus,
             label: l10n.get('login_username'),
-            nextFocus: _passFocus,
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -330,7 +327,6 @@ class _LoginScreenState extends State<LoginScreen>
             focusNode: _passFocus,
             label: l10n.get('login_password'),
             obscure: _obscurePass,
-            nextFocus: _xtreamLoginFocus,
             suffix: IconButton(
               icon: Icon(
                 _obscurePass ? Icons.visibility_off : Icons.visibility,
@@ -361,14 +357,12 @@ class _LoginScreenState extends State<LoginScreen>
             focusNode: _m3uUrlFocus,
             label: l10n.get('login_m3u_url'),
             keyboard: TextInputType.url,
-            nextFocus: _m3uNameFocus,
           ),
           const SizedBox(height: 12),
           _buildTextField(
             controller: _m3uNameCtrl,
             focusNode: _m3uNameFocus,
             label: l10n.get('login_m3u_name'),
-            nextFocus: _m3uLoginFocus,
           ),
           const SizedBox(height: 6),
           Padding(
@@ -479,7 +473,8 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
 
                   // Tab content
-                  Expanded(
+                  SizedBox(
+                    height: 320,
                     child: TabBarView(
                       controller: _tabController,
                       children: [
