@@ -1,0 +1,120 @@
+<div class="page-header">
+  <h1 class="page-title">
+    <span class="prompt">$</span> <%= user ? 'edit-user' : 'add-user' %>
+  </h1>
+  <a href="/mac-users" class="btn btn-outline"><i class="fa fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <div class="card-header">
+    <span class="card-title">// <%= user ? 'Edit MAC User' : 'New MAC User' %></span>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="<%= user ? '/mac-users/' + user.id : '/mac-users' %>">
+      <% if (user) { %><input type="hidden" name="_method" value="POST"><% } %>
+
+      <!-- M3U Extractor -->
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> M3U Extractor URL <span style="color:var(--text-muted); font-size:14px;">(optional)</span></label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="m3u_address" name="m3u_address" class="form-control"
+            placeholder="http://server:port/get.php?username=xxx&password=xxx&type=m3u"
+            value="<%= user && user.m3u_address ? user.m3u_address : '' %>">
+          <button type="button" class="btn btn-outline" onclick="extractM3U()" style="white-space:nowrap; flex-shrink:0;">
+            <i class="fa fa-wand-magic-sparkles"></i> Extract
+          </button>
+        </div>
+        <div class="form-hint">Paste an M3U URL to auto-fill fields below.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> Title / Name</label>
+        <input type="text" name="title" id="field-title" class="form-control" placeholder="e.g. John Doe"
+          value="<%= user ? user.title : '' %>" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> MAC Address</label>
+        <input type="text" name="mac_address" id="field-mac" class="form-control"
+          placeholder="AA:BB:CC:DD:EE:FF"
+          value="<%= user ? user.mac_address : '' %>" required
+          style="text-transform:uppercase; letter-spacing:.5px;">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> Protect This Playlist</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="protection" value="YES" <%= (user && user.protection === 'YES') ? 'checked' : '' %>>
+            <span class="text-green">YES — Protected</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="protection" value="NO" <%= (!user || user.protection === 'NO') ? 'checked' : '' %>>
+            <span class="text-muted">NO — Public</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label"><span class="prompt">--</span> Username</label>
+          <input type="text" name="username" id="field-username" class="form-control"
+            placeholder="stream username"
+            value="<%= user ? user.username : '' %>" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span class="prompt">--</span> Password</label>
+          <input type="text" name="password" id="field-password" class="form-control"
+            placeholder="stream password"
+            value="<%= user ? user.password : '' %>" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> Server (DNS)</label>
+        <select name="server_id" class="form-control">
+          <option value="">— Select server —</option>
+          <% servers.forEach(s => { %>
+            <option value="<%= s.id %>" <%= (user && user.server_id == s.id) ? 'selected' : '' %>>
+              <%= s.title %> — <%= s.url %>
+            </option>
+          <% }) %>
+        </select>
+        <% if (servers.length === 0) { %>
+          <div class="form-hint text-orange"><i class="fa fa-exclamation-triangle"></i> No servers yet. <a href="/dns/create">Add a DNS server first</a>.</div>
+        <% } %>
+      </div>
+
+      <button type="submit" class="btn btn-primary">
+        <i class="fa fa-save"></i> <%= user ? 'Update User' : 'Create User' %>
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+function extractM3U() {
+  const url = document.getElementById('m3u_address').value.trim();
+  if (!url) { alert('Please paste an M3U URL first.'); return; }
+  try {
+    const u = new URL(url);
+    const un = u.searchParams.get('username');
+    const pw = u.searchParams.get('password');
+    if (un) document.getElementById('field-username').value = un;
+    if (pw) document.getElementById('field-password').value = pw;
+    if (un || pw) {
+      document.getElementById('field-username').style.borderColor = 'var(--green)';
+      document.getElementById('field-password').style.borderColor = 'var(--green)';
+    }
+  } catch(e) {
+    alert('Could not parse URL. Please enter a valid M3U URL.');
+  }
+}
+
+// Auto-uppercase MAC address
+document.getElementById('field-mac').addEventListener('input', function() {
+  const pos = this.selectionStart;
+  this.value = this.value.toUpperCase();
+  this.setSelectionRange(pos, pos);
+});
+</script>

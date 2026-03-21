@@ -1,0 +1,27 @@
+<div class="page-header">
+  <h1 class="page-title"><span class="prompt">$</span> remote-update</h1>
+</div>
+
+<div class="card" style="max-width:560px;">
+  <div class="card-header">
+    <span class="card-title">// APK Remote Update</span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted" style="font-size:15px; margin-bottom:20px; line-height:1.7;">
+      The Flutter app checks <span class="text-green">GET /api/update</span> on startup.<br>
+      If the version here differs from the app's current version, an update prompt is shown with the APK link.
+    </p>
+    <form method="POST" action="/settings/update">
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> Latest Version</label>
+        <input type="text" name="version" class="form-control" placeholder="e.g. 1.2.0" value="<%= update.version %>">
+        <div class="form-hint">Use semver format: major.minor.patch</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> APK Download URL</label>
+        <input type="text" name="url" class="form-control" placeholder="https://example.com/app-release.apk" value="<%= update.url %>">
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Save Update Info</button>
+    </form>
+  </div>
+</div>

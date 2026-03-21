@@ -1,0 +1,35 @@
+<div class="page-header">
+  <h1 class="page-title">
+    <span class="prompt">$</span> <%= server ? 'edit-server' : 'add-server' %>
+  </h1>
+  <a href="/dns" class="btn btn-outline"><i class="fa fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card" style="max-width:560px;">
+  <div class="card-header">
+    <span class="card-title">// <%= server ? 'Edit Server' : 'New IPTV Server' %></span>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="<%= server ? '/dns/' + server.id : '/dns' %>">
+      <% if (server) { %><input type="hidden" name="_method" value="POST"><% } %>
+
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> Title</label>
+        <input type="text" name="title" class="form-control" placeholder="e.g. Main Server"
+          value="<%= server ? server.title : '' %>" required>
+        <div class="form-hint">A friendly name to identify this server.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> DNS / URL</label>
+        <input type="text" name="url" class="form-control" placeholder="http://iptv.server.com:8080"
+          value="<%= server ? server.url : '' %>" required>
+        <div class="form-hint">Full URL including protocol and port.</div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">
+        <i class="fa fa-save"></i> <%= server ? 'Update Server' : 'Add Server' %>
+      </button>
+    </form>
+  </div>
+</div>

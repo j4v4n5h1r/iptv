@@ -1,0 +1,67 @@
+<div class="page-header">
+  <h1 class="page-title"><span class="prompt">$</span> dns-settings</h1>
+  <a href="/dns/create" class="btn btn-primary"><i class="fa fa-plus"></i> Add Server</a>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Total Servers</div>
+    <div class="stat-value"><%= servers.length %></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">// DNS / IPTV Servers</span>
+  </div>
+  <div class="card-body">
+    <% if (servers.length === 0) { %>
+      <div class="empty-state">
+        <span class="ei"><i class="fa fa-server"></i></span>
+        <p>No servers yet. <a href="/dns/create">Add your first server</a>.</p>
+      </div>
+    <% } else { %>
+      <div class="table-wrapper">
+        <table id="dnsTable" class="display" style="width:100%">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Title</th>
+              <th>DNS / URL</th>
+              <th>Added</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% servers.forEach((s, i) => { %>
+              <tr>
+                <td class="td-code"><%= i + 1 %></td>
+                <td><%= s.title %></td>
+                <td class="td-code" style="color:var(--green)"><%= s.url %></td>
+                <td class="td-code"><%= s.created_at ? s.created_at.split('T')[0] : '—' %></td>
+                <td>
+                  <a href="/dns/<%= s.id %>/edit" class="btn btn-outline btn-sm"><i class="fa fa-pen"></i> Edit</a>
+                  &nbsp;
+                  <button class="btn btn-danger btn-sm" onclick="confirmDelete('/dns/<%= s.id %>?_method=DELETE')">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+$(document).ready(function() {
+  $('#dnsTable').DataTable({
+    lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+    order: [],
+    columnDefs: [{ orderable: false, targets: 4 }],
+    language: { search: '<i class="fa fa-search"></i>', searchPlaceholder: 'Search servers...' }
+  });
+});
+</script>

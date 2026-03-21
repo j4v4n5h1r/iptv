@@ -1,0 +1,26 @@
+<div class="page-header">
+  <h1 class="page-title"><span class="prompt">$</span> login-page-text</h1>
+</div>
+
+<div class="card" style="max-width:560px;">
+  <div class="card-header">
+    <span class="card-title">// Login Page Text (Flutter App)</span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted" style="font-size:15px; margin-bottom:20px; line-height:1.7;">
+      These texts are shown on the login screen of the Flutter IPTV media player app.<br>
+      Served via <span class="text-green">GET /api/settings</span>.
+    </p>
+    <form method="POST" action="/settings/login-text">
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> Title</label>
+        <input type="text" name="login_title" class="form-control" placeholder="e.g. Welcome" value="<%= loginText.title %>">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> Subtitle</label>
+        <input type="text" name="login_subtitle" class="form-control" placeholder="e.g. Sign in to continue" value="<%= loginText.subtitle %>">
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Save</button>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,28 @@
+<div class="page-header">
+  <h1 class="page-title"><span class="prompt">$</span> set-mac-length</h1>
+</div>
+
+<div class="card" style="max-width:480px;">
+  <div class="card-header">
+    <span class="card-title">// MAC Address Format</span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted" style="font-size:15px; margin-bottom:20px;">
+      Current format: <span class="text-green"><%= current === '12' ? 'XX:XX:XX:XX:XX:XX' : current === '10' ? 'XX:XX:XX:XX:XX' : current === '8' ? 'XX:XX:XX:XX' : current === '6' ? 'XX:XX:XX' : 'XX:XX' %></span>
+      &nbsp;(<%= current %> chars)
+    </p>
+    <form method="POST" action="/settings/mac-length">
+      <div class="form-group">
+        <label class="form-label"><span class="prompt">--</span> Choose MAC Format</label>
+        <select name="mac_length" class="form-control">
+          <option value="4"  <%= current === '4'  ? 'selected' : '' %>>XX:XX &nbsp;&nbsp;&nbsp;&mdash;&nbsp; 4 chars</option>
+          <option value="6"  <%= current === '6'  ? 'selected' : '' %>>XX:XX:XX &nbsp;&mdash;&nbsp; 6 chars</option>
+          <option value="8"  <%= current === '8'  ? 'selected' : '' %>>XX:XX:XX:XX &nbsp;&mdash;&nbsp; 8 chars</option>
+          <option value="10" <%= current === '10' ? 'selected' : '' %>>XX:XX:XX:XX:XX &nbsp;&mdash;&nbsp; 10 chars</option>
+          <option value="12" <%= current === '12' ? 'selected' : '' %>>XX:XX:XX:XX:XX:XX &nbsp;&mdash;&nbsp; 12 chars (standard)</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Save</button>
+    </form>
+  </div>
+</div>

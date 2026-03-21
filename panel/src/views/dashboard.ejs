@@ -1,0 +1,252 @@
+<div class="page-header">
+  <h1 class="page-title"><span class="prompt">$</span> dashboard</h1>
+  <span class="topbar-user" style="font-size:14px; color:var(--text-muted);">
+    <i class="fa fa-circle" style="color:var(--green); font-size:14px;"></i>
+    &nbsp;system operational
+  </span>
+</div>
+
+<!-- Stats Grid -->
+<div class="dash-stats">
+
+  <a href="/mac-users" class="stat-card stat-link">
+    <div class="stat-icon"><i class="fa fa-microchip"></i></div>
+    <div class="stat-label">Total Users</div>
+    <div class="stat-value"><%= stats.totalUsers %></div>
+    <div class="stat-sub"><%= stats.protectedUsers %> protected</div>
+  </a>
+
+  <a href="/dns" class="stat-card stat-link">
+    <div class="stat-icon"><i class="fa fa-server"></i></div>
+    <div class="stat-label">Servers</div>
+    <div class="stat-value"><%= stats.totalServers %></div>
+    <div class="stat-sub">DNS endpoints</div>
+  </a>
+
+  <a href="/activation-codes" class="stat-card stat-link">
+    <div class="stat-icon" style="color:var(--green)"><i class="fa fa-key"></i></div>
+    <div class="stat-label">Unused Codes</div>
+    <div class="stat-value green"><%= stats.unusedCodes %></div>
+    <div class="stat-sub"><%= stats.usedCodes %> used / <%= stats.totalCodes %> total</div>
+  </a>
+
+  <a href="/trials" class="stat-card stat-link">
+    <div class="stat-icon" style="color:var(--blue)"><i class="fa fa-calendar-days"></i></div>
+    <div class="stat-label">Active Trials</div>
+    <div class="stat-value blue"><%= stats.activeTrials %></div>
+    <div class="stat-sub"><%= stats.expiredTrials %> expired</div>
+  </a>
+
+  <a href="/mac-users" class="stat-card stat-link">
+    <div class="stat-icon" style="color:var(--red)"><i class="fa fa-shield-halved"></i></div>
+    <div class="stat-label">Unprotected</div>
+    <div class="stat-value red"><%= stats.totalUsers - stats.protectedUsers %></div>
+    <div class="stat-sub">no playlist lock</div>
+  </a>
+
+  <a href="/activation-codes" class="stat-card stat-link">
+    <div class="stat-icon" style="color:var(--red)"><i class="fa fa-circle-xmark"></i></div>
+    <div class="stat-label">Used Codes</div>
+    <div class="stat-value red"><%= stats.usedCodes %></div>
+    <div class="stat-sub">of <%= stats.totalCodes %> generated</div>
+  </a>
+
+</div>
+
+<!-- Quick Actions -->
+<div class="dash-grid">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">// Quick Actions</span>
+    </div>
+    <div class="card-body" style="padding:14px;">
+      <div class="quick-actions">
+        <a href="/mac-users/create" class="qa-btn">
+          <i class="fa fa-plus"></i><span>Add User</span>
+        </a>
+        <a href="/dns/create" class="qa-btn">
+          <i class="fa fa-server"></i><span>Add Server</span>
+        </a>
+        <a href="/activation-codes" class="qa-btn">
+          <i class="fa fa-key"></i><span>Gen Codes</span>
+        </a>
+        <a href="/trials/create" class="qa-btn">
+          <i class="fa fa-calendar-plus"></i><span>Set Trial</span>
+        </a>
+        <a href="/settings/demo" class="qa-btn">
+          <i class="fa fa-play-circle"></i><span>Set Demo</span>
+        </a>
+        <a href="/settings/notification" class="qa-btn">
+          <i class="fa fa-bell"></i><span>Notification</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">// System Status</span>
+    </div>
+    <div class="card-body" style="padding:14px 20px;">
+      <div class="sys-row"><span class="sys-label">Panel</span><span class="badge badge-unused">online</span></div>
+      <div class="sys-row"><span class="sys-label">Database</span><span class="badge badge-unused">SQLite WAL</span></div>
+      <div class="sys-row"><span class="sys-label">API Endpoints</span><span class="badge badge-active">7 active</span></div>
+      <div class="sys-row"><span class="sys-label">Auth</span><span class="badge badge-unused">session active</span></div>
+      <div class="sys-row"><span class="sys-label">Admin</span><span style="color:var(--green); font-family:var(--mono); font-size:14px;"><%= typeof admin !== 'undefined' ? admin : 'admin' %></span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Recent Users + Trials -->
+<div class="dash-grid" style="margin-top:20px;">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">// Recent Users</span>
+      <a href="/mac-users" class="btn btn-outline btn-sm">View All</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <% if (recentUsers.length === 0) { %>
+        <div class="empty-state" style="padding:20px;">
+          <p>No users yet. <a href="/mac-users/create">Add one</a>.</p>
+        </div>
+      <% } else { %>
+        <table style="width:100%">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>MAC</th>
+              <th>Protected</th>
+              <th>Server</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recentUsers.forEach(u => { %>
+              <tr>
+                <td><strong><%= u.title %></strong></td>
+                <td class="td-code" style="color:var(--green); font-size:14px;"><%= u.mac_address %></td>
+                <td><span class="badge badge-<%= u.protection.toLowerCase() %>"><%= u.protection %></span></td>
+                <td class="td-code" style="font-size:14px;"><%= u.server_title || '—' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">// Upcoming Expirations</span>
+      <a href="/trials" class="btn btn-outline btn-sm">View All</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <% if (recentTrials.length === 0) { %>
+        <div class="empty-state" style="padding:20px;">
+          <p>No trials set. <a href="/trials/create">Set one</a>.</p>
+        </div>
+      <% } else { %>
+        <table style="width:100%">
+          <thead>
+            <tr>
+              <th>MAC Address</th>
+              <th>Expires</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recentTrials.forEach(t => { %>
+              <% const expired = t.expire_date < today; %>
+              <tr>
+                <td class="td-code" style="color:var(--green); font-size:14px;"><%= t.mac_address %></td>
+                <td class="td-code" style="color:<%= expired ? 'var(--red)' : 'var(--orange)' %>; font-size:14px;">
+                  <b><%= t.expire_date %></b>
+                </td>
+                <td><span class="badge <%= expired ? 'badge-used' : 'badge-unused' %>"><%= expired ? 'expired' : 'active' %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </div>
+
+</div>
+
+<style>
+/* Dashboard-specific */
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.stat-link {
+  text-decoration: none !important;
+  transition: transform .15s, box-shadow .15s;
+  cursor: pointer;
+}
+.stat-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 28px rgba(0,0,0,.5);
+  border-color: var(--orange);
+}
+.stat-icon {
+  font-size: 20px;
+  color: var(--orange);
+  margin-bottom: 10px;
+  opacity: .7;
+}
+.stat-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-family: var(--mono);
+}
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) { .dash-grid { grid-template-columns: 1fr; } }
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.qa-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background: var(--bg-card2);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+  transition: all .15s;
+  text-decoration: none;
+  font-family: var(--mono);
+}
+.qa-btn i { font-size: 18px; color: var(--orange); }
+.qa-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--orange);
+  color: var(--text);
+  text-decoration: none;
+}
+.sys-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-dim);
+  font-size: 14px;
+}
+.sys-row:last-child { border-bottom: none; }
+.sys-label { color: var(--text-muted); font-family: var(--mono); }
+</style>

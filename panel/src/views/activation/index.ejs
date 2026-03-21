@@ -1,0 +1,144 @@
+<div class="page-header">
+  <h1 class="page-title"><span class="prompt">$</span> activation-codes</h1>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Total</div>
+    <div class="stat-value"><%= codes.length %></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Unused</div>
+    <div class="stat-value green"><%= codes.filter(c => c.status === 'unused').length %></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Used</div>
+    <div class="stat-value red"><%= codes.filter(c => c.status === 'used').length %></div>
+  </div>
+</div>
+
+<!-- Generate form -->
+<div class="card mb-20">
+  <div class="card-header">
+    <span class="card-title">// Generate New Activation Codes</span>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="/activation-codes" style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
+      <div class="form-group" style="margin:0; flex:1; min-width:160px;">
+        <label class="form-label"><span class="prompt">--</span> Server</label>
+        <select name="server_id" class="form-control">
+          <option value="">— Any server —</option>
+          <% servers.forEach(s => { %>
+            <option value="<%= s.id %>"><%= s.title %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0; width:110px;">
+        <label class="form-label"><span class="prompt">--</span> Count</label>
+        <input type="number" name="count" class="form-control" value="1" min="1" max="50">
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-bottom:0;">
+        <i class="fa fa-bolt"></i> Generate
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- List -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">// Codes List</span>
+  </div>
+  <div class="card-body">
+    <% if (codes.length === 0) { %>
+      <div class="empty-state">
+        <span class="ei"><i class="fa fa-key"></i></span>
+        <p>No activation codes yet. Generate some above.</p>
+      </div>
+    <% } else { %>
+      <div class="table-wrapper">
+        <table id="actTable" class="display" style="width:100%">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Activation Code</th>
+              <th>Status</th>
+              <th>Used By (MAC)</th>
+              <th>Server</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% codes.forEach((c, i) => { %>
+              <tr>
+                <td class="td-code"><%= i + 1 %></td>
+                <td class="td-code" style="color:var(--green); letter-spacing:1px; font-size:15px">
+                  <b><%= c.code %></b>
+                  <button class="btn-copy" title="Copy code" onclick="copyCode(this, '<%= c.code %>')">
+                    <i class="fa fa-copy"></i>
+                  </button>
+                </td>
+                <td><span class="badge badge-<%= c.status %>"><%= c.status %></span></td>
+                <td class="td-code"><%= c.used_by || '—' %></td>
+                <td class="td-code"><%= c.server_title || '—' %></td>
+                <td class="td-code"><%= c.created_at ? c.created_at.split('T')[0] : '—' %></td>
+                <td>
+                  <% if (c.status === 'used') { %>
+                    <form method="POST" action="/activation-codes/<%= c.id %>/reset" style="display:inline;">
+                      <button type="submit" class="btn btn-outline btn-sm"><i class="fa fa-rotate-left"></i> Reset</button>
+                    </form>
+                    &nbsp;
+                  <% } %>
+                  <button class="btn btn-danger btn-sm" onclick="confirmDelete('/activation-codes/<%= c.id %>?_method=DELETE')">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<style>
+.btn-copy {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 5px;
+  margin-left: 6px;
+  border-radius: 3px;
+  font-size: 14px;
+  transition: color .15s;
+  vertical-align: middle;
+}
+.btn-copy:hover { color: var(--green); }
+.btn-copy.copied { color: var(--green); }
+</style>
+
+<script>
+$(document).ready(function() {
+  $('#actTable').DataTable({
+    lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+    order: [[5, 'desc']],
+    columnDefs: [{ orderable: false, targets: 6 }],
+    language: { search: '<i class="fa fa-search"></i>', searchPlaceholder: 'Search codes...' }
+  });
+});
+
+function copyCode(btn, code) {
+  navigator.clipboard.writeText(code).then(() => {
+    const icon = btn.querySelector('i');
+    icon.className = 'fa fa-check';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      icon.className = 'fa fa-copy';
+      btn.classList.remove('copied');
+    }, 1500);
+  });
+}
+</script>
