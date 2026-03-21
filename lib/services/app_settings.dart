@@ -14,21 +14,11 @@ class AppSettings extends ChangeNotifier {
   Set<String> get lockedCategories => _lockedCategories;
 
   // ── Tema ─────────────────────────────────────────────────────────────────
-  String _accentColor = 'blue';
   bool _darkMode = true;
-
-  String get accentColor => _accentColor;
   bool get darkMode => _darkMode;
 
-  Color get accent {
-    switch (_accentColor) {
-      case 'green': return Colors.green;
-      case 'purple': return Colors.purple;
-      case 'red': return Colors.red;
-      case 'teal': return Colors.teal;
-      default: return const Color(0xFF60A5FA); // blue-400
-    }
-  }
+  // Sabit Ubuntu turuncu — değiştirilemez
+  Color get accent => const Color(0xFFE95420);
 
   // ── Dil ──────────────────────────────────────────────────────────────────
   String _language = 'en'; // en | tr
@@ -54,8 +44,6 @@ class AppSettings extends ChangeNotifier {
     _parentalPin = prefs.getString('parental_pin') ?? '';
     final locked = prefs.getStringList('locked_categories') ?? [];
     _lockedCategories = locked.toSet();
-    final saved = prefs.getString('accent_color') ?? 'blue';
-    _accentColor = saved == 'deepOrange' ? 'blue' : saved;
     _darkMode = prefs.getBool('dark_mode') ?? true;
     _language = prefs.getString('language') ?? 'en';
     _streamMode = prefs.getString('stream_mode') ?? 'auto';
@@ -69,7 +57,6 @@ class AppSettings extends ChangeNotifier {
     await prefs.setBool('parental_enabled', _parentalEnabled);
     await prefs.setString('parental_pin', _parentalPin);
     await prefs.setStringList('locked_categories', _lockedCategories.toList());
-    await prefs.setString('accent_color', _accentColor);
     await prefs.setBool('dark_mode', _darkMode);
     await prefs.setString('language', _language);
     await prefs.setString('stream_mode', _streamMode);
@@ -104,12 +91,6 @@ class AppSettings extends ChangeNotifier {
       _parentalEnabled && _lockedCategories.contains(catId);
 
   // ── Tema ─────────────────────────────────────────────────────────────────
-  Future<void> setAccentColor(String color) async {
-    _accentColor = color;
-    await _save();
-    notifyListeners();
-  }
-
   Future<void> setDarkMode(bool v) async {
     _darkMode = v;
     await _save();

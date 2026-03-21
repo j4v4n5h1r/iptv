@@ -132,15 +132,15 @@ class MyApp extends StatelessWidget {
                 seedColor: settings.accent,
                 brightness: Brightness.dark,
               ),
-              scaffoldBackgroundColor: const Color(0xFF0A0A0A),
+              scaffoldBackgroundColor: const Color(0xFF0E001A),
               appBarTheme: AppBarTheme(
                 backgroundColor: settings.accent.withValues(alpha: 0.85),
                 foregroundColor: Colors.white,
                 elevation: 0,
               ),
-              cardColor: Color.lerp(const Color(0xFF1A1A2E), settings.accent, 0.12),
+              cardColor: Color.lerp(const Color(0xFF1A0030), settings.accent, 0.12),
               dialogTheme: DialogThemeData(
-                backgroundColor: Color.lerp(const Color(0xFF1A1A2E), settings.accent, 0.12),
+                backgroundColor: Color.lerp(const Color(0xFF1A0030), settings.accent, 0.12),
               ),
               switchTheme: SwitchThemeData(
                 thumbColor: WidgetStateProperty.resolveWith(
@@ -166,7 +166,7 @@ class _SubscriptionExpiredScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1118),
+      backgroundColor: const Color(0xFF0E001A),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -175,7 +175,7 @@ class _SubscriptionExpiredScreen extends StatelessWidget {
               text: const TextSpan(
                 style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4),
                 children: [
-                  TextSpan(text: 'WALLYT', style: TextStyle(color: Color(0xFF60A5FA))),
+                  TextSpan(text: 'WALLYT', style: TextStyle(color: Color(0xFFE95420))),
                   TextSpan(text: 'TV', style: TextStyle(color: Colors.white)),
                 ],
               ),

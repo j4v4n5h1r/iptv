@@ -6,12 +6,12 @@ import 'recents_screen.dart';
 import 'settings_screen.dart';
 import 'login_screen.dart';
 
-// Renk paleti — HTML'den alındı
-const _kBg     = Color(0xFF0B1118);
-const _kCard   = Color(0xFF1A242D);
-const _kCardHover = Color(0xFF25313D);
-const _kBlue   = Color(0xFF60A5FA); // blue-400
-const _kBorder = Color(0xFF2A3542);
+// Renk paleti — Ubuntu panel teması
+const _kBg        = Color(0xFF0E001A); // --bg
+const _kCard      = Color(0xFF1A0030); // --bg-card
+const _kCardHover = Color(0xFF280048); // --bg-hover
+const _kBlue      = Color(0xFFE95420); // Ubuntu orange (--orange)
+const _kBorder    = Color(0xFF3D1A6A); // --border
 
 class DashboardScreen extends StatefulWidget {
   final String sessionType;
@@ -117,90 +117,101 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: _kBg,
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 40),
             child: Column(
               children: [
-                // ── Logo / Title ──────────────────────────────────────────
-                Column(
+                // ── Header: logo sol, tarih sağ ──────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     RichText(
                       text: const TextSpan(
-                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4),
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 3),
                         children: [
                           TextSpan(text: 'WALLYT', style: TextStyle(color: _kBlue)),
                           TextSpan(text: 'TV', style: TextStyle(color: Colors.white)),
                         ],
                       ),
                     ),
+                    const Text('', style: TextStyle(color: Colors.white38, fontSize: 12, fontStyle: FontStyle.italic)),
                   ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
 
                 // ── Main grid ────────────────────────────────────────────
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Sol: Live TV büyük kart (5/12)
-                      Expanded(
-                        flex: 5,
-                        child: _BigCard(
-                          focusNode: _liveFocus,
-                          icon: Icons.tv,
-                          label: 'Live TV',
-                          onPressed: () => _openSection('live'),
+                Center(
+                  child: IntrinsicHeight(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Sol: Live TV kare kart
+                        SizedBox(
+                          width: 220,
+                          height: 220,
+                          child: _BigCard(
+                            focusNode: _liveFocus,
+                            icon: Icons.tv,
+                            label: 'Live TV',
+                            onPressed: () => _openSection('live'),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                        const SizedBox(width: 16),
 
-                      // Orta: 2x2 grid (4/12)
-                      Expanded(
-                        flex: 4,
-                        child: _isM3u
-                            ? _GridFour(
-                                items: [
-                                  _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
-                                    onPressed: () => _openSection('recents')),
-                                  _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
-                                    onPressed: () => Navigator.pushReplacement(context,
-                                      MaterialPageRoute(builder: (_) => const LoginScreen()))),
-                                  _GridItem(focusNode: _moviesFocus,   icon: Icons.play_circle,   label: 'Movies',    onPressed: () {}),
-                                  _GridItem(focusNode: _seriesFocus,   icon: Icons.movie_filter,  label: 'Series',    onPressed: () {}),
-                                ],
-                              )
-                            : _GridFour(
-                                items: [
-                                  _GridItem(focusNode: _moviesFocus,   icon: Icons.play_circle,   label: 'Movies',           onPressed: () => _openSection('vod')),
-                                  _GridItem(focusNode: _seriesFocus,   icon: Icons.movie_filter,  label: 'Series',           onPressed: () => _openSection('series')),
-                                  _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
-                                    onPressed: () => _openSection('recents')),
-                                  _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
-                                    onPressed: () => Navigator.pushReplacement(context,
-                                      MaterialPageRoute(builder: (_) => const LoginScreen()))),
-                                ],
-                              ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Sağ: aksiyon butonları (3/12)
-                      SizedBox(
-                        width: 180,
-                        child: Column(
-                          children: [
-                            _ActionBtn(focusNode: _settingsFocus, icon: Icons.settings,     label: 'Settings',
-                              onPressed: () => Navigator.push(context,
-                                MaterialPageRoute(builder: (_) => const SettingsScreen()))),
-                            const SizedBox(height: 10),
-                            _ActionBtn(focusNode: _reloadFocus,   icon: Icons.refresh,      label: 'Reload',    onPressed: _reload),
-                            const SizedBox(height: 10),
-                            _ActionBtn(focusNode: _exitFocus,     icon: Icons.exit_to_app,  label: 'Exit',      onPressed: _exit),
-                          ],
+                        // Orta: 2x2 grid — Live TV ile aynı boyut
+                        SizedBox(
+                          width: 220,
+                          height: 220,
+                          child: _isM3u
+                              ? _GridFour(
+                                  items: [
+                                    _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
+                                      onPressed: () => _openSection('recents')),
+                                    _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
+                                      onPressed: () => Navigator.pushReplacement(context,
+                                        MaterialPageRoute(builder: (_) => const LoginScreen()))),
+                                    _GridItem(focusNode: _moviesFocus,   icon: Icons.play_circle,   label: 'Movies',    onPressed: () {}),
+                                    _GridItem(focusNode: _seriesFocus,   icon: Icons.movie_filter,  label: 'Series',    onPressed: () {}),
+                                  ],
+                                )
+                              : _GridFour(
+                                  items: [
+                                    _GridItem(focusNode: _moviesFocus,   icon: Icons.play_circle,   label: 'Movies',           onPressed: () => _openSection('vod')),
+                                    _GridItem(focusNode: _seriesFocus,   icon: Icons.movie_filter,  label: 'Series',           onPressed: () => _openSection('series')),
+                                    _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
+                                      onPressed: () => _openSection('recents')),
+                                    _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
+                                      onPressed: () => Navigator.pushReplacement(context,
+                                        MaterialPageRoute(builder: (_) => const LoginScreen()))),
+                                  ],
+                                ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 16),
+
+                        // Sağ: aksiyon butonları — Live TV ile aynı yükseklik
+                        SizedBox(
+                          width: 170,
+                          height: 220,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: _ActionBtn(focusNode: _settingsFocus, icon: Icons.settings,    label: 'Settings',
+                                onPressed: () => Navigator.push(context,
+                                  MaterialPageRoute(builder: (_) => const SettingsScreen())))),
+                              const SizedBox(height: 12),
+                              Expanded(child: _ActionBtn(focusNode: _reloadFocus,   icon: Icons.refresh,     label: 'Reload',   onPressed: _reload)),
+                              const SizedBox(height: 12),
+                              Expanded(child: _ActionBtn(focusNode: _exitFocus,     icon: Icons.exit_to_app, label: 'Exit',     onPressed: _exit)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+                const Spacer(),
 
                 // ── Footer ───────────────────────────────────────────────
                 const SizedBox(height: 20),
@@ -397,7 +408,7 @@ class _ActionBtn extends StatelessWidget {
             onTap: onPressed,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               decoration: BoxDecoration(
                 color: focused ? _kCardHover : _kCard,
                 borderRadius: BorderRadius.circular(16),

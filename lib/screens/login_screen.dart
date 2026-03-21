@@ -226,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen>
               duration: const Duration(milliseconds: 100),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                border: focused ? Border.all(color: const Color(0xFF60A5FA), width: 2) : null,
+                border: focused ? Border.all(color: const Color(0xFFE95420), width: 2) : null,
               ),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -277,14 +277,14 @@ class _LoginScreenState extends State<LoginScreen>
             borderRadius: BorderRadius.circular(10),
             border: focused ? Border.all(color: Colors.white, width: 2) : null,
             boxShadow: focused
-                ? [BoxShadow(color: const Color(0xFF60A5FA).withValues(alpha: 0.5), blurRadius: 8)]
+                ? [BoxShadow(color: const Color(0xFFE95420).withValues(alpha: 0.5), blurRadius: 8)]
                 : null,
           ),
           child: ElevatedButton(
             onPressed: _isLoading ? null : onPressed,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: focused ? const Color(0xFF3B82F6) : const Color(0xFF60A5FA),
+              backgroundColor: focused ? const Color(0xFFC0392B) : const Color(0xFFE95420),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: _isLoading
@@ -394,7 +394,7 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     final l10n = AppL10n(Provider.of<AppSettings>(context).language);
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A14),
+      backgroundColor: const Color(0xFF0E001A),
       body: Center(
         child: FocusTraversalGroup(
             policy: ReadingOrderTraversalPolicy(),
@@ -436,13 +436,13 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 32),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A1A2E),
+                        color: const Color(0xFF1A0030),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: TabBar(
                         controller: _tabController,
-                        indicatorColor: const Color(0xFF60A5FA),
-                        labelColor: const Color(0xFF60A5FA),
+                        indicatorColor: const Color(0xFFE95420),
+                        labelColor: const Color(0xFFE95420),
                         unselectedLabelColor: Colors.white38,
                         indicatorSize: TabBarIndicatorSize.tab,
                         dividerColor: Colors.transparent,
@@ -511,7 +511,7 @@ class _LoginScreenState extends State<LoginScreen>
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             side: BorderSide(
-                                color: focused ? const Color(0xFF60A5FA) : Colors.white24),
+                                color: focused ? const Color(0xFFE95420) : Colors.white24),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8)),
                           ),

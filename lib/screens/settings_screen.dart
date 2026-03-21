@@ -243,22 +243,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ── Appearance ────────────────────────────────────────────
                 _sectionHeader(l10n.get('settings_theme')),
 
-                // Accent color
-                _settingsTile(
-                  icon: Icons.palette,
-                  title: l10n.get('settings_theme_accent'),
-                  subtitle: settings.accentColor,
-                  onTap: () => _showColorPicker(settings),
-                  trailing: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: settings.accent,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-
                 // ── Language ──────────────────────────────────────────────
                 _sectionHeader(l10n.get('settings_language')),
                 _settingsTile(
@@ -387,78 +371,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       },
-    );
-  }
-
-  // ── Pickers ─────────────────────────────────────────────────────────────
-  void _showColorPicker(AppSettings s) {
-    final colorKeys   = ['blue', 'green', 'purple', 'red', 'teal'];
-    final colorLabels = ['Blue', 'Green', 'Purple', 'Red', 'Teal'];
-    final colorValues = [const Color(0xFF60A5FA), Colors.green, Colors.purple, Colors.red, Colors.teal];
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: const Text('Accent Color', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(colorKeys.length, (i) {
-            final key   = colorKeys[i];
-            final label = colorLabels[i];
-            final color = colorValues[i];
-            final selected = s.accentColor == key;
-            final focusNode = FocusNode();
-            return Focus(
-              focusNode: focusNode,
-              onKeyEvent: (node, event) {
-                if (event is KeyDownEvent &&
-                    (event.logicalKey == LogicalKeyboardKey.select ||
-                     event.logicalKey == LogicalKeyboardKey.enter)) {
-                  s.setAccentColor(key);
-                  Navigator.pop(context);
-                  return KeyEventResult.handled;
-                }
-                return KeyEventResult.ignored;
-              },
-              child: ListenableBuilder(
-                listenable: focusNode,
-                builder: (context, _) {
-                  final focused = focusNode.hasFocus;
-                  return InkWell(
-                    onTap: () { s.setAccentColor(key); Navigator.pop(context); },
-                    borderRadius: BorderRadius.circular(8),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 80),
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: focused ? Colors.white : (selected ? color : Colors.white12),
-                          width: focused ? 2 : 1.5,
-                        ),
-                        color: selected ? color.withValues(alpha: 0.15) : Colors.transparent,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 28, height: 28,
-                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15))),
-                          if (selected) Icon(Icons.check, color: color, size: 18),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            );
-          }),
-        ),
-      ),
     );
   }
 

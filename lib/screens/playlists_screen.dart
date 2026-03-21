@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/xtream_service.dart';
 import '../services/m3u_service.dart';
 import '../models/channel.dart';
-import 'home_screen.dart';
+import 'dashboard_screen.dart';
 
 class PlaylistsScreen extends StatefulWidget {
   const PlaylistsScreen({super.key});
@@ -68,7 +68,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen(sessionType: 'xtream')),
+        MaterialPageRoute(builder: (_) => const DashboardScreen(sessionType: 'xtream')),
         (route) => false,
       );
     }
@@ -90,7 +90,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen(sessionType: 'm3u')),
+        MaterialPageRoute(builder: (_) => const DashboardScreen(sessionType: 'm3u')),
         (route) => false,
       );
     }
@@ -137,8 +137,8 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.deepOrange,
-          labelColor: Colors.deepOrange,
+          indicatorColor: const Color(0xFFE95420),
+          labelColor: const Color(0xFFE95420),
           unselectedLabelColor: Colors.white54,
           tabs: const [
             Tab(icon: Icon(Icons.dns), text: 'Xtream'),
@@ -151,14 +151,14 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(color: Colors.deepOrange),
+                  CircularProgressIndicator(color: const Color(0xFFE95420)),
                   SizedBox(height: 16),
                   Text('Switching playlist...', style: TextStyle(color: Colors.white54)),
                 ],
               ),
             )
           : _loading
-              ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
+              ? const Center(child: CircularProgressIndicator(color: const Color(0xFFE95420)))
               : Shortcuts(
                   shortcuts: {
                     LogicalKeySet(LogicalKeyboardKey.arrowDown): const NextFocusIntent(),
@@ -234,7 +234,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
-        color: isActive ? Colors.deepOrange.withValues(alpha: 0.15) : const Color(0xFF1A1A2E),
+        color: isActive ? const Color(0xFFE95420).withValues(alpha: 0.15) : const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: onTap,
@@ -244,7 +244,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isActive ? Colors.deepOrange : Colors.white12,
+                color: isActive ? const Color(0xFFE95420) : Colors.white12,
                 width: isActive ? 1.5 : 1,
               ),
             ),
@@ -254,7 +254,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: isActive ? Colors.deepOrange : Colors.white10,
+                    color: isActive ? const Color(0xFFE95420) : Colors.white10,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -274,7 +274,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
                             child: Text(
                               name,
                               style: TextStyle(
-                                color: isActive ? Colors.deepOrange : Colors.white,
+                                color: isActive ? const Color(0xFFE95420) : Colors.white,
                                 fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                                 fontSize: 15,
                               ),
@@ -287,7 +287,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
                               margin: const EdgeInsets.only(left: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.deepOrange,
+                                color: const Color(0xFFE95420),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Text(
