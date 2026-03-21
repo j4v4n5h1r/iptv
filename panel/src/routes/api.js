@@ -95,6 +95,22 @@ router.post('/activate', (req, res) => {
     serverInfo = db.prepare('SELECT * FROM servers WHERE id = ?').get(activationCode.server_id);
   }
 
+  // Register device in mac_users if not already registered
+  const existing = db.prepare('SELECT id FROM mac_users WHERE mac_address = ?').get(mac);
+  if (!existing) {
+    db.prepare(`
+      INSERT INTO mac_users (title, mac_address, username, password, protection, m3u_address, server_id)
+      VALUES (?, ?, ?, ?, 'NO', ?, ?)
+    `).run(
+      mac,
+      mac,
+      '',
+      '',
+      serverInfo ? (serverInfo.m3u_address || null) : null,
+      activationCode.server_id || null
+    );
+  }
+
   return res.json({
     success: true,
     message: 'Activated successfully.',
