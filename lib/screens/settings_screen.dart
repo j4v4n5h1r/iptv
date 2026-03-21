@@ -74,11 +74,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color: focused ? Colors.deepOrange : Colors.white12, width: 1.5),
+                    color: focused ? const Color(0xFF60A5FA) : Colors.white12, width: 1.5),
               ),
               child: Row(
                 children: [
-                  Icon(icon, color: focused ? Colors.deepOrange : Colors.white70, size: 22),
+                  Icon(icon, color: focused ? const Color(0xFF60A5FA) : Colors.white70, size: 22),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
@@ -136,7 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
           TextButton(
               onPressed: () { Navigator.pop(ctx); onSubmit(ctrl.text); },
-              child: const Text('OK', style: TextStyle(color: Colors.deepOrange))),
+              child: const Text('OK', style: TextStyle(color: const Color(0xFF60A5FA)))),
         ],
       ),
     );
@@ -234,7 +234,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Later', style: TextStyle(color: Colors.white54))),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK', style: TextStyle(color: Colors.deepOrange))),
+            child: const Text('OK', style: TextStyle(color: const Color(0xFF60A5FA)))),
         ],
       ),
     );
@@ -411,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showColorPicker(AppSettings s) {
     final colorKeys   = ['deepOrange', 'blue', 'green', 'purple', 'red', 'teal'];
     final colorLabels = ['Deep Orange', 'Blue', 'Green', 'Purple', 'Red', 'Teal'];
-    final colorValues = [Colors.deepOrange, Colors.blue, Colors.green, Colors.purple, Colors.red, Colors.teal];
+    final colorValues = [const Color(0xFF60A5FA), Colors.blue, Colors.green, Colors.purple, Colors.red, Colors.teal];
 
     showDialog(
       context: context,
@@ -529,14 +529,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? Colors.deepOrange.withValues(alpha: 0.2) : Colors.transparent,
+          color: selected ? const Color(0xFF60A5FA).withValues(alpha: 0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? Colors.deepOrange : Colors.white12),
+          border: Border.all(color: selected ? const Color(0xFF60A5FA) : Colors.white12),
         ),
         child: Row(
           children: [
             Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15))),
-            if (selected) const Icon(Icons.check, color: Colors.deepOrange, size: 18),
+            if (selected) const Icon(Icons.check, color: const Color(0xFF60A5FA), size: 18),
           ],
         ),
       ),
@@ -564,11 +564,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: Text(_streamModeLabel(m, l10n),
                           style: TextStyle(
-                            color: selected ? Colors.deepOrange : Colors.white,
+                            color: selected ? const Color(0xFF60A5FA) : Colors.white,
                             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                           )),
                     ),
-                    if (selected) const Icon(Icons.check, color: Colors.deepOrange, size: 18),
+                    if (selected) const Icon(Icons.check, color: const Color(0xFF60A5FA), size: 18),
                   ],
                 ),
               ),
@@ -599,11 +599,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: Text('$v seconds',
                           style: TextStyle(
-                            color: selected ? Colors.deepOrange : Colors.white,
+                            color: selected ? const Color(0xFF60A5FA) : Colors.white,
                             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                           )),
                     ),
-                    if (selected) const Icon(Icons.check, color: Colors.deepOrange, size: 18),
+                    if (selected) const Icon(Icons.check, color: const Color(0xFF60A5FA), size: 18),
                   ],
                 ),
               ),

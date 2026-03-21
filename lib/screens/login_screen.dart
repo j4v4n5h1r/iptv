@@ -226,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen>
               duration: const Duration(milliseconds: 100),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                border: focused ? Border.all(color: Colors.deepOrange, width: 2) : null,
+                border: focused ? Border.all(color: const Color(0xFF60A5FA), width: 2) : null,
               ),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -277,14 +277,14 @@ class _LoginScreenState extends State<LoginScreen>
             borderRadius: BorderRadius.circular(10),
             border: focused ? Border.all(color: Colors.white, width: 2) : null,
             boxShadow: focused
-                ? [BoxShadow(color: Colors.deepOrange.withValues(alpha: 0.5), blurRadius: 8)]
+                ? [BoxShadow(color: const Color(0xFF60A5FA).withValues(alpha: 0.5), blurRadius: 8)]
                 : null,
           ),
           child: ElevatedButton(
             onPressed: _isLoading ? null : onPressed,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: focused ? Colors.deepOrange.shade700 : Colors.deepOrange,
+              backgroundColor: focused ? const Color(0xFF3B82F6) : const Color(0xFF60A5FA),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: _isLoading
@@ -394,7 +394,7 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     final l10n = AppL10n(Provider.of<AppSettings>(context).language);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0A0A14),
       body: Center(
         child: FocusTraversalGroup(
             policy: ReadingOrderTraversalPolicy(),
@@ -406,15 +406,15 @@ class _LoginScreenState extends State<LoginScreen>
                 children: [
                   const SizedBox(height: 32),
                   // Logo
-                  const Icon(Icons.connected_tv, color: Colors.deepOrange, size: 64),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Wallyt IPTV',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
+                  Center(
+                    child: RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4),
+                        children: [
+                          TextSpan(text: 'WALLYT', style: TextStyle(color: Color(0xFF60A5FA))),
+                          TextSpan(text: 'TV', style: TextStyle(color: Colors.white)),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -441,8 +441,8 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                       child: TabBar(
                         controller: _tabController,
-                        indicatorColor: Colors.deepOrange,
-                        labelColor: Colors.deepOrange,
+                        indicatorColor: const Color(0xFF60A5FA),
+                        labelColor: const Color(0xFF60A5FA),
                         unselectedLabelColor: Colors.white38,
                         indicatorSize: TabBarIndicatorSize.tab,
                         dividerColor: Colors.transparent,
@@ -511,7 +511,7 @@ class _LoginScreenState extends State<LoginScreen>
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             side: BorderSide(
-                                color: focused ? Colors.deepOrange : Colors.white24),
+                                color: focused ? const Color(0xFF60A5FA) : Colors.white24),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8)),
                           ),

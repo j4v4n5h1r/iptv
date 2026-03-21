@@ -12,8 +12,6 @@ import '../services/update_service.dart';
 import '../models/channel.dart';
 import 'player_screen.dart';
 import 'series_screen.dart';
-import 'settings_screen.dart';
-import 'playlists_screen.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -125,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK', style: TextStyle(color: Colors.deepOrange)),
+            child: const Text('OK', style: TextStyle(color: const Color(0xFF60A5FA))),
           ),
         ],
       ),
@@ -321,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   const SnackBar(content: Text('Wrong PIN')));
               }
             },
-            child: const Text('OK', style: TextStyle(color: Colors.deepOrange))),
+            child: const Text('OK', style: TextStyle(color: const Color(0xFF60A5FA)))),
         ],
       ),
     );
@@ -472,50 +470,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final l10n = AppL10n(Provider.of<AppSettings>(context).language);
+    final sectionTitle = widget.initialTab == 'vod'
+        ? l10n.get('tab_movies')
+        : widget.initialTab == 'series'
+            ? l10n.get('tab_series')
+            : l10n.get('tab_live');
+
     return Scaffold(
+      backgroundColor: const Color(0xFF0B1118),
       appBar: AppBar(
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 8),
-          child: Icon(Icons.connected_tv, color: Colors.deepOrange),
+        backgroundColor: const Color(0xFF0B1118),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white70),
+          onPressed: () => Navigator.pop(context),
         ),
-        title: Text(l10n.get('app_name'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.deepOrange,
-          labelColor: Colors.deepOrange,
-          unselectedLabelColor: Colors.white54,
-          tabs: _isM3u
-              ? [
-                  Tab(icon: const Icon(Icons.tv), text: l10n.get('tab_channels')),
-                  Tab(icon: const Icon(Icons.favorite), text: l10n.get('tab_favorites')),
-                  Tab(icon: const Icon(Icons.history), text: l10n.get('tab_recents')),
-                ]
-              : [
-                  Tab(icon: const Icon(Icons.live_tv), text: l10n.get('tab_live')),
-                  Tab(icon: const Icon(Icons.movie), text: l10n.get('tab_movies')),
-                  Tab(icon: const Icon(Icons.tv), text: l10n.get('tab_series')),
-                  Tab(icon: const Icon(Icons.favorite), text: l10n.get('tab_favorites')),
-                  Tab(icon: const Icon(Icons.history), text: l10n.get('tab_recents')),
-                ],
+        title: Text(
+          sectionTitle,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.playlist_play, color: Colors.white70),
-            tooltip: 'Playlists',
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlaylistsScreen())),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white70),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ).then((_) => _loadWatchlist()),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white70),
-            onPressed: _logout,
-          ),
-        ],
       ),
       body: Shortcuts(
         shortcuts: {
@@ -539,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     duration: const Duration(milliseconds: 100),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      border: focused ? Border.all(color: Colors.deepOrange, width: 2) : null,
+                      border: focused ? Border.all(color: const Color(0xFF60A5FA), width: 2) : null,
                     ),
                     child: TextField(
                       controller: _searchController,
@@ -571,14 +544,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         SizedBox(
                           width: 170,
                           child: _loadingCategories
-                              ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
+                              ? const Center(child: CircularProgressIndicator(color: const Color(0xFF60A5FA)))
                               : _buildCategoryList(),
                         ),
                         Container(width: 1, color: Colors.white12),
                         // Right: Channels
                         Expanded(
                           child: _loadingChannels
-                              ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
+                              ? const Center(child: CircularProgressIndicator(color: const Color(0xFF60A5FA)))
                               : NotificationListener<ScrollEndNotification>(
                                   onNotification: (_) {
                                     if (_tabIndex == 0) _loadEpgForVisible();
@@ -617,10 +590,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? Colors.deepOrange.withValues(alpha: 0.2) : Colors.transparent,
+          color: selected ? const Color(0xFF60A5FA).withValues(alpha: 0.2) : Colors.transparent,
           border: Border(
             left: BorderSide(
-              color: selected ? Colors.deepOrange : Colors.transparent,
+              color: selected ? const Color(0xFF60A5FA) : Colors.transparent,
               width: 3,
             ),
           ),
@@ -628,7 +601,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: Text(
           name,
           style: TextStyle(
-            color: selected ? Colors.deepOrange : Colors.white70,
+            color: selected ? const Color(0xFF60A5FA) : Colors.white70,
             fontSize: 13,
             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
           ),
@@ -753,7 +726,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     if (epg != null) {
                       return Text(
                         '${epg.timeRange}  ${epg.title}',
-                        style: const TextStyle(color: Colors.deepOrange, fontSize: 11),
+                        style: const TextStyle(color: const Color(0xFF60A5FA), fontSize: 11),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       );

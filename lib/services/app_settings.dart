@@ -14,7 +14,7 @@ class AppSettings extends ChangeNotifier {
   Set<String> get lockedCategories => _lockedCategories;
 
   // ── Tema ─────────────────────────────────────────────────────────────────
-  String _accentColor = 'deepOrange'; // deepOrange | blue | green | purple | red
+  String _accentColor = 'blue';
   bool _darkMode = true;
 
   String get accentColor => _accentColor;
@@ -22,12 +22,11 @@ class AppSettings extends ChangeNotifier {
 
   Color get accent {
     switch (_accentColor) {
-      case 'blue': return Colors.blue;
       case 'green': return Colors.green;
       case 'purple': return Colors.purple;
       case 'red': return Colors.red;
       case 'teal': return Colors.teal;
-      default: return Colors.deepOrange;
+      default: return const Color(0xFF60A5FA); // blue-400
     }
   }
 
@@ -55,7 +54,8 @@ class AppSettings extends ChangeNotifier {
     _parentalPin = prefs.getString('parental_pin') ?? '';
     final locked = prefs.getStringList('locked_categories') ?? [];
     _lockedCategories = locked.toSet();
-    _accentColor = prefs.getString('accent_color') ?? 'deepOrange';
+    final saved = prefs.getString('accent_color') ?? 'blue';
+    _accentColor = saved == 'deepOrange' ? 'blue' : saved;
     _darkMode = prefs.getBool('dark_mode') ?? true;
     _language = prefs.getString('language') ?? 'en';
     _streamMode = prefs.getString('stream_mode') ?? 'auto';

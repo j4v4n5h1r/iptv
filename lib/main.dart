@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:media_kit/media_kit.dart'; // ignore: depend_on_referenced_packages
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'services/xtream_service.dart';
 import 'services/app_settings.dart';
 
@@ -87,7 +87,7 @@ class MyApp extends StatelessWidget {
             ),
             themeMode: ThemeMode.dark,
             home: hasSession
-                ? HomeScreen(sessionType: sessionType!)
+                ? DashboardScreen(sessionType: sessionType!)
                 : const LoginScreen(),
             onGenerateRoute: (_) => PageRouteBuilder(
               pageBuilder: (_, __, ___) => const LoginScreen(),

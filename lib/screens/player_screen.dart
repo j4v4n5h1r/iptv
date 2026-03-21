@@ -254,7 +254,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               // Buffering indicator
               if (_isBuffering)
                 const Center(
-                  child: CircularProgressIndicator(color: Colors.deepOrange),
+                  child: CircularProgressIndicator(color: const Color(0xFF60A5FA)),
                 ),
 
               // Controls overlay
@@ -281,7 +281,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     },
                     label: const Text('Channels'),
                     icon: const Icon(Icons.list),
-                    backgroundColor: Colors.deepOrange,
+                    backgroundColor: const Color(0xFF60A5FA),
                   ),
                 ),
 
@@ -421,7 +421,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: _isTimeshifted
                   ? ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepOrange,
+                        backgroundColor: const Color(0xFF60A5FA),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
@@ -557,7 +557,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     if (chNum != null)
                       Text(
                         'CH $chNum',
-                        style: const TextStyle(color: Colors.deepOrange, fontSize: 11, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: const Color(0xFF60A5FA), fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                     Text(
                       _currentChannel.name,
@@ -581,7 +581,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
-                      color: Colors.deepOrange,
+                      color: const Color(0xFF60A5FA),
                       strokeWidth: 2,
                     ),
                   ),
@@ -638,7 +638,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   _isScrubbing = false;
                   _resetHideTimer();
                 },
-                activeColor: Colors.deepOrange,
+                activeColor: const Color(0xFF60A5FA),
                 inactiveColor: Colors.white30,
               ),
             ),
