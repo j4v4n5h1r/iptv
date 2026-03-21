@@ -46,40 +46,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? subtitle,
     Widget? trailing,
     VoidCallback? onTap,
-    bool focused = false,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-              color: focused ? Colors.deepOrange : Colors.white12, width: 1.5),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white70, size: 22),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    final focusNode = FocusNode();
+    return Focus(
+      focusNode: focusNode,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.select ||
+             event.logicalKey == LogicalKeyboardKey.enter ||
+             event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+          onTap?.call();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: ListenableBuilder(
+        listenable: focusNode,
+        builder: (context, _) {
+          final focused = focusNode.hasFocus;
+          return InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: focused ? Colors.deepOrange : Colors.white12, width: 1.5),
+              ),
+              child: Row(
                 children: [
-                  Text(title,
-                      style: const TextStyle(color: Colors.white, fontSize: 14)),
-                  if (subtitle != null)
-                    Text(subtitle,
-                        style: const TextStyle(
-                            color: Colors.white38, fontSize: 12)),
+                  Icon(icon, color: focused ? Colors.deepOrange : Colors.white70, size: 22),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                            style: TextStyle(
+                                color: focused ? Colors.white : Colors.white,
+                                fontSize: 14)),
+                        if (subtitle != null)
+                          Text(subtitle,
+                              style: const TextStyle(
+                                  color: Colors.white38, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  if (trailing != null) trailing,
                 ],
               ),
             ),
-            if (trailing != null) trailing,
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -388,40 +409,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ── Pickers ─────────────────────────────────────────────────────────────
   void _showColorPicker(AppSettings s) {
-    final colors = {
-      'deepOrange': Colors.deepOrange,
-      'blue': Colors.blue,
-      'green': Colors.green,
-      'purple': Colors.purple,
-      'red': Colors.red,
-      'teal': Colors.teal,
-    };
+    final colorKeys   = ['deepOrange', 'blue', 'green', 'purple', 'red', 'teal'];
+    final colorLabels = ['Deep Orange', 'Blue', 'Green', 'Purple', 'Red', 'Teal'];
+    final colorValues = [Colors.deepOrange, Colors.blue, Colors.green, Colors.purple, Colors.red, Colors.teal];
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
         title: const Text('Accent Color', style: TextStyle(color: Colors.white)),
-        content: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: colors.entries.map((e) {
-            final selected = s.accentColor == e.key;
-            return GestureDetector(
-              onTap: () { s.setAccentColor(e.key); Navigator.pop(context); },
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: e.value,
-                  shape: BoxShape.circle,
-                  border: selected ? Border.all(color: Colors.white, width: 3) : null,
-                ),
-                child: selected
-                    ? const Icon(Icons.check, color: Colors.white, size: 20)
-                    : null,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(colorKeys.length, (i) {
+            final key   = colorKeys[i];
+            final label = colorLabels[i];
+            final color = colorValues[i];
+            final selected = s.accentColor == key;
+            final focusNode = FocusNode();
+            return Focus(
+              focusNode: focusNode,
+              onKeyEvent: (node, event) {
+                if (event is KeyDownEvent &&
+                    (event.logicalKey == LogicalKeyboardKey.select ||
+                     event.logicalKey == LogicalKeyboardKey.enter)) {
+                  s.setAccentColor(key);
+                  Navigator.pop(context);
+                  return KeyEventResult.handled;
+                }
+                return KeyEventResult.ignored;
+              },
+              child: ListenableBuilder(
+                listenable: focusNode,
+                builder: (context, _) {
+                  final focused = focusNode.hasFocus;
+                  return InkWell(
+                    onTap: () { s.setAccentColor(key); Navigator.pop(context); },
+                    borderRadius: BorderRadius.circular(8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 80),
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: focused ? Colors.white : (selected ? color : Colors.white12),
+                          width: focused ? 2 : 1.5,
+                        ),
+                        color: selected ? color.withValues(alpha: 0.15) : Colors.transparent,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 28, height: 28,
+                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15))),
+                          if (selected) Icon(Icons.check, color: color, size: 18),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             );
-          }).toList(),
+          }),
         ),
       ),
     );

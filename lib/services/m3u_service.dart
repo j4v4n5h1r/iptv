@@ -212,6 +212,12 @@ class M3uService {
     await prefs.remove('m3u_active_url');
     await prefs.remove('m3u_active_name');
   }
+
+  static Future<void> clearCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('m3u_cached_channels');
+    await prefs.remove('m3u_cached_at');
+  }
 }
 
 class M3uPlaylist {

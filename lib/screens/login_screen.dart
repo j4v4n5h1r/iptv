@@ -8,7 +8,7 @@ import '../services/app_settings.dart';
 import '../services/app_localizations.dart';
 import '../models/channel.dart';
 import '../widgets/tv_keyboard.dart';
-import 'home_screen.dart';
+import 'dashboard_screen.dart';
 import 'player_screen.dart';
 import 'playlists_screen.dart';
 
@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const HomeScreen(sessionType: 'xtream'),
+          builder: (_) => const DashboardScreen(sessionType: 'xtream'),
         ),
       );
     } else {
@@ -169,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const HomeScreen(sessionType: 'm3u'),
+          builder: (_) => const DashboardScreen(sessionType: 'm3u'),
         ),
       );
     } else if (channels != null && channels.isEmpty) {
@@ -181,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const HomeScreen(sessionType: 'm3u'),
+          builder: (_) => const DashboardScreen(sessionType: 'm3u'),
         ),
       );
     } else {

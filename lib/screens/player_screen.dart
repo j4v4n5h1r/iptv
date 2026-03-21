@@ -269,8 +269,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
               if (_showChannelList)
                 _buildChannelListOverlay(),
 
-              // Channel list FAB
-              if (!_showChannelList)
+              // Channel list FAB — sadece live/VOD listesinde göster, film izlerken gizle
+              if (!_showChannelList && !widget.isMovie)
                 Positioned(
                   bottom: 80,
                   right: 20,
@@ -279,7 +279,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       setState(() => _showChannelList = true);
                       _hideControlsTimer?.cancel();
                     },
-                    label: Text(widget.isMovie ? 'Movies' : 'Channels'),
+                    label: const Text('Channels'),
                     icon: const Icon(Icons.list),
                     backgroundColor: Colors.deepOrange,
                   ),

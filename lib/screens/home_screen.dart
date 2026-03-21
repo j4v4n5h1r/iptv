@@ -18,8 +18,9 @@ import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String sessionType; // 'xtream' or 'm3u'
+  final String initialTab;  // 'live', 'vod', 'series'
 
-  const HomeScreen({super.key, this.sessionType = 'xtream'});
+  const HomeScreen({super.key, this.sessionType = 'xtream', this.initialTab = 'live'});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -92,6 +93,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _loadWatchlist();
       _loadInitial();
       _checkUpdate();
+      // initialTab'a göre doğru tab'a git
+      if (!_isM3u) {
+        final tabIndex = widget.initialTab == 'vod' ? 1 : widget.initialTab == 'series' ? 2 : 0;
+        if (tabIndex != 0) {
+          _tabController.animateTo(tabIndex);
+        }
+      }
     });
   }
 
