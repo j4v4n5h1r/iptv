@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/m3u_service.dart';
 import 'home_screen.dart';
+import 'recents_screen.dart';
 import 'settings_screen.dart';
 import 'login_screen.dart';
 
@@ -55,6 +56,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _openSection(String section) {
+    if (section == 'recents') {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const RecentsScreen()));
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -101,10 +106,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Shortcuts(
       shortcuts: {
-        LogicalKeySet(LogicalKeyboardKey.arrowDown):  const NextFocusIntent(),
-        LogicalKeySet(LogicalKeyboardKey.arrowUp):    const PreviousFocusIntent(),
-        LogicalKeySet(LogicalKeyboardKey.arrowLeft):  const PreviousFocusIntent(),
-        LogicalKeySet(LogicalKeyboardKey.arrowRight): const NextFocusIntent(),
+        LogicalKeySet(LogicalKeyboardKey.arrowDown):  const DirectionalFocusIntent(TraversalDirection.down),
+        LogicalKeySet(LogicalKeyboardKey.arrowUp):    const DirectionalFocusIntent(TraversalDirection.up),
+        LogicalKeySet(LogicalKeyboardKey.arrowLeft):  const DirectionalFocusIntent(TraversalDirection.left),
+        LogicalKeySet(LogicalKeyboardKey.arrowRight): const DirectionalFocusIntent(TraversalDirection.right),
         LogicalKeySet(LogicalKeyboardKey.select):     const ActivateIntent(),
         LogicalKeySet(LogicalKeyboardKey.enter):      const ActivateIntent(),
       },
@@ -131,6 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 32),
 
+
                 // ── Main grid ────────────────────────────────────────────
                 Expanded(
                   child: Row(
@@ -154,12 +160,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: _isM3u
                             ? _GridFour(
                                 items: [
-                                  _GridItem(focusNode: _cacheFocus,    icon: Icons.sync,          label: 'Clear\nCache',
-                                    onPressed: () async {
-                                      await M3uService.clearCache();
-                                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Cache cleared')));
-                                    }),
+                                  _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
+                                    onPressed: () => _openSection('recents')),
                                   _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
                                     onPressed: () => Navigator.pushReplacement(context,
                                       MaterialPageRoute(builder: (_) => const LoginScreen()))),
@@ -171,12 +173,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 items: [
                                   _GridItem(focusNode: _moviesFocus,   icon: Icons.play_circle,   label: 'Movies',           onPressed: () => _openSection('vod')),
                                   _GridItem(focusNode: _seriesFocus,   icon: Icons.movie_filter,  label: 'Series',           onPressed: () => _openSection('series')),
-                                  _GridItem(focusNode: _cacheFocus,    icon: Icons.sync,          label: 'Clear\nCache',
-                                    onPressed: () async {
-                                      await M3uService.clearCache();
-                                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Cache cleared')));
-                                    }),
+                                  _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
+                                    onPressed: () => _openSection('recents')),
                                   _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
                                     onPressed: () => Navigator.pushReplacement(context,
                                       MaterialPageRoute(builder: (_) => const LoginScreen()))),
@@ -203,6 +201,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 ),
+
+                // ── Footer ───────────────────────────────────────────────
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _FooterItem(icon: Icons.telegram, iconColor: _kBlue,                    text: 't.me/Indiantvstore'),
+                    const SizedBox(width: 32),
+                    _FooterItem(icon: Icons.headset,  iconColor: Color(0xFFFBBF24),          text: 'www.indiantvstore.chat'),
+                    const SizedBox(width: 32),
+                    _FooterItem(icon: Icons.phone,    iconColor: Color(0xFFF59E0B),          text: '+44 20 7946 0958'),
+                  ],
+                ),
+                const SizedBox(height: 8),
               ],
             ),
           ),
@@ -339,6 +351,26 @@ class _SmallCard extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+// ── Footer item ───────────────────────────────────────────────────────────────
+class _FooterItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String text;
+  const _FooterItem({required this.icon, required this.iconColor, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: iconColor, size: 16),
+        const SizedBox(width: 6),
+        Text(text, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+      ],
     );
   }
 }

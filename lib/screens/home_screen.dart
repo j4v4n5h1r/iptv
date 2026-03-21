@@ -492,9 +492,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
       body: Shortcuts(
         shortcuts: {
-          LogicalKeySet(LogicalKeyboardKey.arrowDown): const NextFocusIntent(),
-          LogicalKeySet(LogicalKeyboardKey.arrowUp): const PreviousFocusIntent(),
-          LogicalKeySet(LogicalKeyboardKey.arrowLeft): const DirectionalFocusIntent(TraversalDirection.left),
+          LogicalKeySet(LogicalKeyboardKey.arrowDown):  const DirectionalFocusIntent(TraversalDirection.down),
+          LogicalKeySet(LogicalKeyboardKey.arrowUp):    const DirectionalFocusIntent(TraversalDirection.up),
+          LogicalKeySet(LogicalKeyboardKey.arrowLeft):  const DirectionalFocusIntent(TraversalDirection.left),
           LogicalKeySet(LogicalKeyboardKey.arrowRight): const DirectionalFocusIntent(TraversalDirection.right),
           LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
           LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),

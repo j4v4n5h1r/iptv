@@ -107,38 +107,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ── Parental Control ────────────────────────────────────────────────────
   void _showPinDialog({required String title, required Function(String) onSubmit}) {
-    final ctrl = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          maxLength: 4,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white, fontSize: 22, letterSpacing: 8),
-          decoration: const InputDecoration(
-            counterText: '',
-            hintText: '• • • •',
-            hintStyle: TextStyle(color: Colors.white24),
-            filled: true,
-            fillColor: Color(0xFF0A0A0A),
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (v) { Navigator.pop(ctx); onSubmit(v); },
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
-          TextButton(
-              onPressed: () { Navigator.pop(ctx); onSubmit(ctrl.text); },
-              child: const Text('OK', style: TextStyle(color: const Color(0xFF60A5FA)))),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (ctx) => _PinPadDialog(title: title, onSubmit: (pin) {
+        Navigator.pop(ctx);
+        onSubmit(pin);
+      }, onCancel: () => Navigator.pop(ctx)),
     );
   }
 
@@ -248,8 +223,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final l10n = AppL10n(settings.language);
         return Shortcuts(
           shortcuts: {
-            LogicalKeySet(LogicalKeyboardKey.arrowDown): const NextFocusIntent(),
-            LogicalKeySet(LogicalKeyboardKey.arrowUp): const PreviousFocusIntent(),
+            LogicalKeySet(LogicalKeyboardKey.arrowDown): const DirectionalFocusIntent(TraversalDirection.down),
+            LogicalKeySet(LogicalKeyboardKey.arrowUp):   const DirectionalFocusIntent(TraversalDirection.up),
             LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
             LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
           },
@@ -322,6 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.memory,
                   title: l10n.get('settings_hw_decode'),
                   subtitle: settings.hwDecode ? 'On' : 'Off',
+                  onTap: () => settings.setHwDecode(!settings.hwDecode),
                   trailing: Switch(
                     value: settings.hwDecode,
                     activeThumbColor: settings.accent,
@@ -335,6 +311,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.lock,
                   title: l10n.get('settings_parental_enable'),
                   subtitle: settings.parentalEnabled ? 'Enabled' : 'Disabled',
+                  onTap: () {
+                    if (!settings.parentalEnabled) {
+                      _setupParentalPin(settings);
+                    } else {
+                      _disableParental(settings);
+                    }
+                  },
                   trailing: Switch(
                     value: settings.parentalEnabled,
                     activeThumbColor: settings.accent,
@@ -409,9 +392,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ── Pickers ─────────────────────────────────────────────────────────────
   void _showColorPicker(AppSettings s) {
-    final colorKeys   = ['deepOrange', 'blue', 'green', 'purple', 'red', 'teal'];
-    final colorLabels = ['Deep Orange', 'Blue', 'Green', 'Purple', 'Red', 'Teal'];
-    final colorValues = [const Color(0xFF60A5FA), Colors.blue, Colors.green, Colors.purple, Colors.red, Colors.teal];
+    final colorKeys   = ['blue', 'green', 'purple', 'red', 'teal'];
+    final colorLabels = ['Blue', 'Green', 'Purple', 'Red', 'Teal'];
+    final colorValues = [const Color(0xFF60A5FA), Colors.green, Colors.purple, Colors.red, Colors.teal];
 
     showDialog(
       context: context,
@@ -536,7 +519,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Row(
           children: [
             Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15))),
-            if (selected) const Icon(Icons.check, color: const Color(0xFF60A5FA), size: 18),
+            if (selected) const Icon(Icons.check, color: Color(0xFF60A5FA), size: 18),
           ],
         ),
       ),
@@ -568,7 +551,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                           )),
                     ),
-                    if (selected) const Icon(Icons.check, color: const Color(0xFF60A5FA), size: 18),
+                    if (selected) const Icon(Icons.check, color: Color(0xFF60A5FA), size: 18),
                   ],
                 ),
               ),
@@ -603,7 +586,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                           )),
                     ),
-                    if (selected) const Icon(Icons.check, color: const Color(0xFF60A5FA), size: 18),
+                    if (selected) const Icon(Icons.check, color: Color(0xFF60A5FA), size: 18),
                   ],
                 ),
               ),
@@ -620,5 +603,158 @@ class _SettingsScreenState extends State<SettingsScreen> {
       case 'ts': return l10n.get('stream_ts');
       default: return l10n.get('stream_auto');
     }
+  }
+}
+
+// ── PIN Pad Dialog ────────────────────────────────────────────────────────────
+class _PinPadDialog extends StatefulWidget {
+  final String title;
+  final Function(String) onSubmit;
+  final VoidCallback onCancel;
+  const _PinPadDialog({required this.title, required this.onSubmit, required this.onCancel});
+
+  @override
+  State<_PinPadDialog> createState() => _PinPadDialogState();
+}
+
+class _PinPadDialogState extends State<_PinPadDialog> {
+  String _pin = '';
+
+  // 3x4 grid: 1-9, *, 0, ⌫
+  static const _keys = [
+    '1','2','3',
+    '4','5','6',
+    '7','8','9',
+    '⌫','0','✓',
+  ];
+
+  // FocusNodes for 12 keys
+  final List<FocusNode> _focusNodes = List.generate(12, (_) => FocusNode());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNodes[0].requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final n in _focusNodes) { n.dispose(); }
+    super.dispose();
+  }
+
+  void _press(String key) {
+    if (key == '⌫') {
+      if (_pin.isNotEmpty) setState(() => _pin = _pin.substring(0, _pin.length - 1));
+    } else if (key == '✓') {
+      widget.onSubmit(_pin);
+    } else if (_pin.length < 4) {
+      setState(() => _pin += key);
+      if (_pin.length == 4) {
+        // auto submit after 4 digits
+        Future.delayed(const Duration(milliseconds: 200), () => widget.onSubmit(_pin));
+      }
+    }
+  }
+
+  KeyEventResult _onKey(int index, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      _press(_keys[index]);
+      return KeyEventResult.handled;
+    }
+    // Arrow navigation in 3-column grid
+    int next = index;
+    if (key == LogicalKeyboardKey.arrowRight) next = (index + 1).clamp(0, 11);
+    else if (key == LogicalKeyboardKey.arrowLeft) next = (index - 1).clamp(0, 11);
+    else if (key == LogicalKeyboardKey.arrowDown) next = (index + 3).clamp(0, 11);
+    else if (key == LogicalKeyboardKey.arrowUp) next = (index - 3).clamp(0, 11);
+    else return KeyEventResult.ignored;
+    if (next != index) _focusNodes[next].requestFocus();
+    return KeyEventResult.handled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dots = List.generate(4, (i) => i < _pin.length ? '●' : '○').join('  ');
+    return Dialog(
+      backgroundColor: const Color(0xFF1A242D),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Text(dots, style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 28, letterSpacing: 8)),
+            const SizedBox(height: 20),
+            // 3x4 grid
+            SizedBox(
+              width: 240,
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 1.4,
+                ),
+                itemCount: 12,
+                itemBuilder: (_, i) {
+                  final label = _keys[i];
+                  return Focus(
+                    focusNode: _focusNodes[i],
+                    onKeyEvent: (_, e) => _onKey(i, e),
+                    child: ListenableBuilder(
+                      listenable: _focusNodes[i],
+                      builder: (_, __) {
+                        final focused = _focusNodes[i].hasFocus;
+                        final isAction = label == '⌫' || label == '✓';
+                        return GestureDetector(
+                          onTap: () => _press(label),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 100),
+                            decoration: BoxDecoration(
+                              color: focused
+                                  ? const Color(0xFF60A5FA)
+                                  : isAction
+                                      ? const Color(0xFF25313D)
+                                      : const Color(0xFF0B1118),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: focused ? Colors.white : const Color(0xFF2A3542),
+                                width: focused ? 2 : 1,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                label,
+                                style: TextStyle(
+                                  color: focused ? Colors.white : (isAction ? const Color(0xFF60A5FA) : Colors.white),
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: widget.onCancel,
+              child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
