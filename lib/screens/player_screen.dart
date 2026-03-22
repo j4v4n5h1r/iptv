@@ -172,12 +172,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } else {
       setState(() => _showControls = true);
       _resetHideTimer();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _playFocus.requestFocus();
+      });
     }
   }
 
   void _showControlsTemp() {
     if (!_showControls) {
       setState(() => _showControls = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _playFocus.requestFocus();
+      });
     }
     _resetHideTimer();
   }
@@ -190,17 +196,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (key == LogicalKeyboardKey.goBack || key == LogicalKeyboardKey.escape) {
       if (_showChannelList) {
         setState(() => _showChannelList = false);
+        _playerFocusNode.requestFocus();
       } else if (_showControls) {
-        setState(() => _showControls = false);
         _hideControlsTimer?.cancel();
+        setState(() => _showControls = false);
+        _playerFocusNode.requestFocus();
       } else {
         Navigator.pop(context);
       }
       return KeyEventResult.handled;
     }
 
-    // Controls kapalıysa her tuşta aç, kanal geçişi yap
-    if (!_showControls && !_showChannelList) {
+    // Controls açıkken butonlar kendi focus'larını yönetir — sadece mediaPlayPause yakala
+    if (_showControls && !_showChannelList) {
+      if (key == LogicalKeyboardKey.mediaPlayPause) {
+        _player.playOrPause();
+        _resetHideTimer();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // Controls kapalı
+    if (!_showChannelList) {
       if (key == LogicalKeyboardKey.mediaPlayPause) {
         _player.playOrPause();
         return KeyEventResult.handled;
@@ -215,7 +233,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         if (idx < widget.channels.length - 1) _changeChannel(widget.channels[idx + 1]);
         return KeyEventResult.handled;
       }
-      // Diğer tuşlar controls'u açsın, focus play'e gitsin
+      // Diğer tuşlar controls'u aç
       _showControlsTemp();
       return KeyEventResult.handled;
     }
@@ -297,13 +315,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                 ),
 
-              // Progress bar
+              // Progress bar — focus dışında tut
               if (widget.isMovie && _showControls && !_showChannelList)
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: _buildProgressBar(),
+                  child: ExcludeFocus(child: _buildProgressBar()),
                 ),
             ],
           ),
@@ -380,21 +398,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     tooltip: 'Programme Guide',
                     onPressed: _openEpg,
                   ),
-                IconButton(
-                  focusNode: _favFocus,
-                  icon: Icon(
-                    _currentChannel.isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: _currentChannel.isFavorite ? Colors.red : Colors.white,
-                    size: 28,
-                  ),
-                  onPressed: () {
-                    final updated = _currentChannel.copyWith(
-                      isFavorite: !_currentChannel.isFavorite,
-                    );
-                    setState(() => _currentChannel = updated);
-                    widget.onFavoriteToggled(updated);
-                  },
-                ),
               ],
             ),
           ),
@@ -514,7 +517,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return IconButton(
       focusNode: focusNode,
       icon: Icon(icon, color: Colors.white, size: size),
-      onPressed: onPressed,
+      onPressed: () {
+        _resetHideTimer();
+        onPressed();
+      },
       style: IconButton.styleFrom(
         backgroundColor: Colors.white.withValues(alpha: 0.15),
         shape: const CircleBorder(),

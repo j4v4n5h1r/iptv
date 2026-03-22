@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _checkUpdate();
       // initialTab'a göre doğru tab'a git
       if (!_isM3u) {
-        final tabIndex = widget.initialTab == 'vod' ? 1 : widget.initialTab == 'series' ? 2 : 0;
+        final tabIndex = widget.initialTab == 'vod' ? 1 : widget.initialTab == 'series' ? 2 : widget.initialTab == 'favorites' ? 3 : widget.initialTab == 'recents' ? 4 : 0;
         if (tabIndex != 0) {
           _tabController.animateTo(tabIndex);
         }
@@ -458,6 +458,122 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  void _showSearchKeyboard(BuildContext context) {
+    final temp = _searchController.text;
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final ctrl = TextEditingController(text: temp);
+        const keys = [
+          ['q','w','e','r','t','y','u','i','o','p'],
+          ['a','s','d','f','g','h','j','k','l'],
+          ['z','x','c','v','b','n','m'],
+          ['123',' ','⌫'],
+        ];
+        const nums = [
+          ['1','2','3','4','5','6','7','8','9','0'],
+          ['-','_','.','/','@','#','!','?'],
+          ['ABC',' ','⌫'],
+        ];
+        bool numMode = false;
+
+        return StatefulBuilder(builder: (ctx, setSt) {
+          final rows = numMode ? nums : keys;
+          return Dialog(
+            backgroundColor: const Color(0xFF1A0030),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Input göstergesi
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE95420), width: 1.5),
+                    ),
+                    child: ValueListenableBuilder(
+                      valueListenable: ctrl,
+                      builder: (_, v, __) => Text(
+                        ctrl.text.isEmpty ? 'Search...' : ctrl.text,
+                        style: TextStyle(
+                          color: ctrl.text.isEmpty ? Colors.white38 : Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Tuşlar
+                  ...rows.map((row) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Wrap(
+                      spacing: 6,
+                      children: row.map((k) {
+                        final isWide = k == ' ' || k == '123' || k == 'ABC';
+                        return SizedBox(
+                          width: k == ' ' ? 120 : isWide ? 70 : 38,
+                          height: 44,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF280048),
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.zero,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            onPressed: () {
+                              if (k == '⌫') {
+                                if (ctrl.text.isNotEmpty) ctrl.text = ctrl.text.substring(0, ctrl.text.length - 1);
+                              } else if (k == '123') {
+                                setSt(() => numMode = true);
+                              } else if (k == 'ABC') {
+                                setSt(() => numMode = false);
+                              } else {
+                                ctrl.text += k;
+                              }
+                            },
+                            child: Text(k == ' ' ? '⎵' : k, style: const TextStyle(fontSize: 15)),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  )),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(foregroundColor: Colors.white54, side: const BorderSide(color: Colors.white24)),
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE95420), foregroundColor: Colors.white),
+                          onPressed: () {
+                            setState(() => _searchController.text = ctrl.text);
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Search'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -505,34 +621,58 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             // Search bar
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              child: Focus(
-                focusNode: _searchFocus,
-                child: Builder(builder: (ctx) {
+              child: ListenableBuilder(
+                listenable: _searchFocus,
+                builder: (_, __) {
                   final focused = _searchFocus.hasFocus;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 100),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: focused ? Border.all(color: const Color(0xFF60A5FA), width: 2) : null,
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: l10n.get('search'),
-                        hintStyle: const TextStyle(color: Colors.white38),
-                        prefixIcon: const Icon(Icons.search, color: Colors.white38),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        border: OutlineInputBorder(
+                  return Focus(
+                    focusNode: _searchFocus,
+                    onKeyEvent: (_, e) {
+                      if (e is KeyDownEvent &&
+                          (e.logicalKey == LogicalKeyboardKey.select ||
+                           e.logicalKey == LogicalKeyboardKey.enter)) {
+                        _showSearchKeyboard(context);
+                        return KeyEventResult.handled;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: GestureDetector(
+                      onTap: () => _showSearchKeyboard(context),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 100),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
+                          border: Border.all(
+                            color: focused ? const Color(0xFFE95420) : Colors.transparent,
+                            width: 2,
+                          ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.search, color: Colors.white38, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _searchController.text.isEmpty ? l10n.get('search') : _searchController.text,
+                                style: TextStyle(
+                                  color: _searchController.text.isEmpty ? Colors.white38 : Colors.white,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            if (_searchController.text.isNotEmpty)
+                              GestureDetector(
+                                onTap: () => setState(() => _searchController.clear()),
+                                child: const Icon(Icons.close, color: Colors.white38, size: 18),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   );
-                }),
+                },
               ),
             ),
             // Body
@@ -655,16 +795,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       );
     }
     // Movies → grid
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 0.65,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+    return FocusTraversalGroup(
+      policy: ReadingOrderTraversalPolicy(),
+      child: GridView.builder(
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 0.65,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemCount: channels.length,
+        itemBuilder: (ctx, i) => _buildVodCard(channels[i]),
       ),
-      itemCount: channels.length,
-      itemBuilder: (ctx, i) => _buildVodCard(channels[i]),
     );
   }
 
@@ -758,6 +901,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final isFav = _favorites.any((c) => c.url == channel.url);
     return InkWell(
       onTap: () => _onChannelTap(channel),
+      borderRadius: BorderRadius.circular(6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -788,15 +932,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           child: const Icon(Icons.movie, color: Colors.white24, size: 40),
                         ),
                 ),
+                // Favorite ikonu — Enter/Select ile tıklanabilir
                 Positioned(
-                  top: 4,
-                  right: 4,
-                  child: GestureDetector(
-                    onTap: () => _toggleFavorite(channel),
-                    child: Icon(
-                      isFav ? Icons.favorite : Icons.favorite_border,
-                      color: isFav ? Colors.red : Colors.white54,
-                      size: 18,
+                  top: 2,
+                  right: 2,
+                  child: Material(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(4),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(4),
+                      onTap: () => _toggleFavorite(channel),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          color: isFav ? Colors.red : Colors.white70,
+                          size: 18,
+                        ),
+                      ),
                     ),
                   ),
                 ),
