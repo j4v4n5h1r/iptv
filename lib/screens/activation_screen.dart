@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/backend_service.dart';
+import '../services/xtream_service.dart';
 import 'dashboard_screen.dart';
 
 const _kBg   = Color(0xFF0B1118);
@@ -49,7 +51,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
     }
     setState(() { _isLoading = true; _error = null; });
 
-    final err = await BackendService.activateDevice(widget.deviceId, _formattedCode);
+    final err = await BackendService.activateDevice(widget.deviceId, _enteredCode);
     if (!mounted) return;
 
     if (err != null) {
@@ -93,6 +95,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
 
   Future<void> _saveAndNavigate(AuthResult auth) async {
     final user = auth.user!;
+    final xtream = Provider.of<XtreamService>(context, listen: false);
     final prefs = await SharedPreferences.getInstance();
 
     if (user.m3uUrl.isNotEmpty) {
@@ -102,10 +105,18 @@ class _ActivationScreenState extends State<ActivationScreen> {
         context,
         MaterialPageRoute(builder: (_) => const DashboardScreen(sessionType: 'm3u')),
       );
-    } else {
+    } else if (user.serverUrl.isNotEmpty) {
       await prefs.setString('xtream_server', user.serverUrl);
       await prefs.setString('xtream_username', user.username);
       await prefs.setString('xtream_password', user.password);
+      await xtream.loadSavedPlaylist();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardScreen(sessionType: 'xtream')),
+      );
+    } else {
+      // Backend'de credentials henüz girilmemiş — yine de dashboard'a geç
       if (!mounted) return;
       Navigator.pushReplacement(
         context,

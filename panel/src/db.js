@@ -28,6 +28,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     url TEXT NOT NULL,
+    username TEXT NOT NULL DEFAULT '',
+    password TEXT NOT NULL DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -48,6 +50,7 @@ db.exec(`
     code TEXT NOT NULL UNIQUE,
     status TEXT NOT NULL DEFAULT 'unused',
     server_id INTEGER REFERENCES servers(id) ON DELETE SET NULL,
+    mac_user_id INTEGER REFERENCES mac_users(id) ON DELETE SET NULL,
     used_by TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );

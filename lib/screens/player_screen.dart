@@ -54,6 +54,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Timer? _osdTimer;
 
   final FocusNode _playerFocusNode = FocusNode();
+  final FocusNode _backFocus      = FocusNode();
+  final FocusNode _favFocus       = FocusNode();
+  final FocusNode _epgFocus       = FocusNode();
+  final FocusNode _rewindFocus    = FocusNode();
+  final FocusNode _playFocus      = FocusNode();
+  final FocusNode _fwdFocus       = FocusNode();
+  final FocusNode _timeshiftFocus = FocusNode();
 
   @override
   void initState() {
@@ -157,10 +164,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _toggleControls() {
-    if (_isScrubbing) return; // slider sürüklenirken toggle yapma
+    if (_isScrubbing) return;
     if (_showControls) {
       _hideControlsTimer?.cancel();
       setState(() => _showControls = false);
+      _playerFocusNode.requestFocus();
     } else {
       setState(() => _showControls = true);
       _resetHideTimer();
@@ -168,53 +176,50 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _showControlsTemp() {
-    setState(() => _showControls = true);
+    if (!_showControls) {
+      setState(() => _showControls = true);
+    }
     _resetHideTimer();
   }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
-    _showControlsTemp();
-
     final key = event.logicalKey;
+
     if (key == LogicalKeyboardKey.goBack || key == LogicalKeyboardKey.escape) {
       if (_showChannelList) {
         setState(() => _showChannelList = false);
+      } else if (_showControls) {
+        setState(() => _showControls = false);
+        _hideControlsTimer?.cancel();
       } else {
         Navigator.pop(context);
       }
       return KeyEventResult.handled;
-    } else if (key == LogicalKeyboardKey.select ||
-        key == LogicalKeyboardKey.enter ||
-        key == LogicalKeyboardKey.mediaPlayPause) {
-      if (!_showChannelList) _player.playOrPause();
-      return KeyEventResult.handled;
-    } else if (key == LogicalKeyboardKey.arrowLeft ||
-        key == LogicalKeyboardKey.mediaRewind) {
-      if (!_showChannelList) {
-        _player.seek(_player.state.position - const Duration(seconds: 10));
+    }
+
+    // Controls kapalıysa her tuşta aç, kanal geçişi yap
+    if (!_showControls && !_showChannelList) {
+      if (key == LogicalKeyboardKey.mediaPlayPause) {
+        _player.playOrPause();
+        return KeyEventResult.handled;
       }
-      return KeyEventResult.handled;
-    } else if (key == LogicalKeyboardKey.arrowRight ||
-        key == LogicalKeyboardKey.mediaFastForward) {
-      if (!_showChannelList) {
-        _player.seek(_player.state.position + const Duration(seconds: 10));
-      }
-      return KeyEventResult.handled;
-    } else if (key == LogicalKeyboardKey.arrowUp) {
-      if (!_showChannelList) {
+      if (key == LogicalKeyboardKey.arrowUp) {
         final idx = widget.channels.indexWhere((c) => c.url == _currentChannel.url);
         if (idx > 0) _changeChannel(widget.channels[idx - 1]);
+        return KeyEventResult.handled;
       }
-      return KeyEventResult.handled;
-    } else if (key == LogicalKeyboardKey.arrowDown) {
-      if (!_showChannelList) {
+      if (key == LogicalKeyboardKey.arrowDown) {
         final idx = widget.channels.indexWhere((c) => c.url == _currentChannel.url);
         if (idx < widget.channels.length - 1) _changeChannel(widget.channels[idx + 1]);
+        return KeyEventResult.handled;
       }
+      // Diğer tuşlar controls'u açsın, focus play'e gitsin
+      _showControlsTemp();
       return KeyEventResult.handled;
     }
+
     return KeyEventResult.ignored;
   }
 
@@ -226,6 +231,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _durationSub?.cancel();
     _player.dispose();
     _playerFocusNode.dispose();
+    _backFocus.dispose();
+    _favFocus.dispose();
+    _epgFocus.dispose();
+    _rewindFocus.dispose();
+    _playFocus.dispose();
+    _fwdFocus.dispose();
+    _timeshiftFocus.dispose();
     super.dispose();
   }
 
@@ -324,6 +336,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             child: Row(
               children: [
                 IconButton(
+                  focusNode: _backFocus,
                   icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -362,11 +375,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
               children: [
                 if (!widget.isMovie && _currentChannel.streamId != null)
                   IconButton(
+                    focusNode: _epgFocus,
                     icon: const Icon(Icons.calendar_today, color: Colors.white, size: 24),
                     tooltip: 'Programme Guide',
                     onPressed: _openEpg,
                   ),
                 IconButton(
+                  focusNode: _favFocus,
                   icon: Icon(
                     _currentChannel.isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: _currentChannel.isFavorite ? Colors.red : Colors.white,
@@ -396,17 +411,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   children: [
                     _buildControlBtn(Icons.fast_rewind, () {
                       _player.seek(_player.state.position - const Duration(seconds: 10));
-                    }),
+                    }, focusNode: _rewindFocus),
                     const SizedBox(width: 24),
                     _buildControlBtn(
                       isPlaying ? Icons.pause_circle : Icons.play_circle,
                       _player.playOrPause,
                       size: 72,
+                      focusNode: _playFocus,
                     ),
                     const SizedBox(width: 24),
                     _buildControlBtn(Icons.fast_forward, () {
                       _player.seek(_player.state.position + const Duration(seconds: 10));
-                    }),
+                    }, focusNode: _fwdFocus),
                   ],
                 );
               },
@@ -494,8 +510,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildControlBtn(IconData icon, VoidCallback onPressed, {double size = 52}) {
+  Widget _buildControlBtn(IconData icon, VoidCallback onPressed, {double size = 52, FocusNode? focusNode}) {
     return IconButton(
+      focusNode: focusNode,
       icon: Icon(icon, color: Colors.white, size: size),
       onPressed: onPressed,
       style: IconButton.styleFrom(

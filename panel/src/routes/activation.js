@@ -26,14 +26,15 @@ router.get('/', (req, res) => {
     `).all();
   }
   const servers = db.prepare('SELECT * FROM servers ORDER BY title').all();
+  const macUsers = db.prepare('SELECT * FROM mac_users ORDER BY title').all();
   res.render('activation/index', {
-    title: 'Activation Codes', path: '/activation-codes', codes, servers, search,
+    title: 'Activation Codes', path: '/activation-codes', codes, servers, macUsers, search,
   });
 });
 
 // Create
 router.post('/', (req, res) => {
-  const { server_id, count = 1 } = req.body;
+  const { server_id, mac_user_id, count = 1 } = req.body;
   const num = Math.min(parseInt(count) || 1, 50);
 
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -57,11 +58,11 @@ router.post('/', (req, res) => {
   }
 
   const insert = db.prepare(
-    'INSERT INTO activation_codes (code, status, server_id) VALUES (?, ?, ?)'
+    'INSERT INTO activation_codes (code, status, server_id, mac_user_id) VALUES (?, ?, ?, ?)'
   );
   const insertMany = db.transaction(() => {
     for (let i = 0; i < num; i++) {
-      insert.run(uniqueCode(), 'unused', server_id || null);
+      insert.run(uniqueCode(), 'unused', server_id || null, mac_user_id || null);
     }
   });
   insertMany();

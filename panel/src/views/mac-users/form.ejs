@@ -41,19 +41,7 @@
           style="text-transform:uppercase; letter-spacing:.5px;">
       </div>
 
-      <div class="form-group">
-        <label class="form-label"><span class="prompt">--</span> Protect This Playlist</label>
-        <div class="radio-group">
-          <label class="radio-option">
-            <input type="radio" name="protection" value="YES" <%= (user && user.protection === 'YES') ? 'checked' : '' %>>
-            <span class="text-green">YES — Protected</span>
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="protection" value="NO" <%= (!user || user.protection === 'NO') ? 'checked' : '' %>>
-            <span class="text-muted">NO — Public</span>
-          </label>
-        </div>
-      </div>
+      <input type="hidden" name="protection" value="NO">
 
       <div class="grid-2">
         <div class="form-group">
@@ -72,17 +60,20 @@
 
       <div class="form-group">
         <label class="form-label"><span class="prompt">--</span> Server (DNS)</label>
-        <select name="server_id" class="form-control">
-          <option value="">— Select server —</option>
-          <% servers.forEach(s => { %>
-            <option value="<%= s.id %>" <%= (user && user.server_id == s.id) ? 'selected' : '' %>>
-              <%= s.title %> — <%= s.url %>
-            </option>
-          <% }) %>
-        </select>
-        <% if (servers.length === 0) { %>
-          <div class="form-hint text-orange"><i class="fa fa-exclamation-triangle"></i> No servers yet. <a href="/dns/create">Add a DNS server first</a>.</div>
-        <% } %>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select id="serverSelect" class="form-control" style="flex:0 0 200px;" onchange="onServerSelect(this)">
+            <option value="">— Quick select —</option>
+            <% servers.forEach(s => { %>
+              <option value="<%= s.url %>" <%= (user && user.server_id == s.id) ? 'selected' : '' %>>
+                <%= s.title %>
+              </option>
+            <% }) %>
+          </select>
+          <input type="text" name="server_url" id="field-server-url" class="form-control"
+            placeholder="http://yourserver.com"
+            value="<%= user && user.server_url ? user.server_url : '' %>">
+        </div>
+        <div class="form-hint">Select from list or type a URL directly.</div>
       </div>
 
       <button type="submit" class="btn btn-primary">
@@ -109,6 +100,10 @@ function extractM3U() {
   } catch(e) {
     alert('Could not parse URL. Please enter a valid M3U URL.');
   }
+}
+
+function onServerSelect(sel) {
+  if (sel.value) document.getElementById('field-server-url').value = sel.value;
 }
 
 // Auto-uppercase MAC address

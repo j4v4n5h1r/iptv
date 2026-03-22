@@ -7,7 +7,12 @@ router.use(requireAuth);
 
 // List
 router.get('/', (req, res) => {
-  const trials = db.prepare('SELECT * FROM trials ORDER BY expire_date ASC').all();
+  const trials = db.prepare(`
+    SELECT t.*, mu.title AS user_title
+    FROM trials t
+    LEFT JOIN mac_users mu ON mu.mac_address = t.mac_address
+    ORDER BY t.expire_date ASC
+  `).all();
   const today = new Date().toISOString().split('T')[0];
   res.render('trials/index', { title: 'Set Expiration', path: '/trials', trials, today });
 });

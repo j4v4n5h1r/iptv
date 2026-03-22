@@ -34,6 +34,7 @@
           <thead>
             <tr>
               <th>#</th>
+              <th>Title</th>
               <th>MAC Address</th>
               <th>Expire Date</th>
               <th>Status</th>
@@ -45,6 +46,7 @@
               <% const expired = t.expire_date < today; %>
               <tr>
                 <td class="td-code"><%= i + 1 %></td>
+                <td><strong><%= t.user_title || '—' %></strong></td>
                 <td class="td-code" style="color:var(--green)"><%= t.mac_address %></td>
                 <td class="td-code" style="color:<%= expired ? 'var(--red)' : 'var(--green)' %>">
                   <b><%= t.expire_date %></b>
@@ -75,7 +77,7 @@ $(document).ready(function() {
   $('#trialsTable').DataTable({
     lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
     order: [[2, 'asc']],
-    columnDefs: [{ orderable: false, targets: 4 }],
+    columnDefs: [{ orderable: false, targets: 5 }],
     language: { search: '<i class="fa fa-search"></i>', searchPlaceholder: 'Search...' }
   });
 });

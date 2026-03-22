@@ -136,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       return;
     }
     final xtream = Provider.of<XtreamService>(context, listen: false);
+    if (xtream.serverUrl == null) await xtream.loadSavedPlaylist();
     setState(() => _loadingCategories = true);
     final liveCats = await xtream.getLiveCategories();
     setState(() { _liveCategories = liveCats; _loadingCategories = false; });

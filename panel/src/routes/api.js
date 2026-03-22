@@ -95,20 +95,25 @@ router.post('/activate', (req, res) => {
     serverInfo = db.prepare('SELECT * FROM servers WHERE id = ?').get(activationCode.server_id);
   }
 
-  // Register device in mac_users if not already registered
-  const existing = db.prepare('SELECT id FROM mac_users WHERE mac_address = ?').get(mac);
-  if (!existing) {
-    db.prepare(`
-      INSERT INTO mac_users (title, mac_address, username, password, protection, m3u_address, server_id)
-      VALUES (?, ?, ?, ?, 'NO', ?, ?)
-    `).run(
-      mac,
-      mac,
-      '',
-      '',
-      serverInfo ? (serverInfo.m3u_address || null) : null,
-      activationCode.server_id || null
-    );
+  // If activation code is linked to a specific mac_user, bind this MAC to that user
+  let linkedUser = null;
+  if (activationCode.mac_user_id) {
+    linkedUser = db.prepare('SELECT * FROM mac_users WHERE id = ?').get(activationCode.mac_user_id);
+    if (linkedUser) {
+      db.prepare('UPDATE mac_users SET mac_address = ? WHERE id = ?')
+        .run(mac, linkedUser.id);
+    }
+  }
+
+  // If no linked user, create a new mac_users entry
+  if (!linkedUser) {
+    const existing = db.prepare('SELECT id FROM mac_users WHERE mac_address = ?').get(mac);
+    if (!existing) {
+      db.prepare(`
+        INSERT INTO mac_users (title, mac_address, username, password, protection, m3u_address, server_id)
+        VALUES (?, ?, ?, ?, 'NO', ?, ?)
+      `).run(mac, mac, '', '', null, activationCode.server_id || null);
+    }
   }
 
   return res.json({

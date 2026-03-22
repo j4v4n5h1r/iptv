@@ -24,9 +24,18 @@
   </div>
   <div class="card-body">
     <form method="POST" action="/activation-codes" style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
+      <div class="form-group" style="margin:0; flex:1; min-width:180px;">
+        <label class="form-label"><span class="prompt">--</span> MAC User (specific user)</label>
+        <select name="mac_user_id" class="form-control" id="macUserSelect" onchange="onMacUserChange(this)">
+          <option value="">— No specific user —</option>
+          <% macUsers.forEach(u => { %>
+            <option value="<%= u.id %>"><%= u.title %> (<%= u.mac_address %>)</option>
+          <% }) %>
+        </select>
+      </div>
       <div class="form-group" style="margin:0; flex:1; min-width:160px;">
         <label class="form-label"><span class="prompt">--</span> Server</label>
-        <select name="server_id" class="form-control">
+        <select name="server_id" class="form-control" id="serverSelect">
           <option value="">— Any server —</option>
           <% servers.forEach(s => { %>
             <option value="<%= s.id %>"><%= s.title %></option>
@@ -129,6 +138,16 @@ $(document).ready(function() {
     language: { search: '<i class="fa fa-search"></i>', searchPlaceholder: 'Search codes...' }
   });
 });
+
+function onMacUserChange(sel) {
+  const countInput = sel.closest('form').querySelector('[name="count"]');
+  if (sel.value) {
+    countInput.value = 1;
+    countInput.disabled = true;
+  } else {
+    countInput.disabled = false;
+  }
+}
 
 function copyCode(btn, code) {
   navigator.clipboard.writeText(code).then(() => {

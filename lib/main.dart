@@ -51,8 +51,8 @@ void main() async {
   } else if (!reg.registered) {
     // Device not registered → show activation screen
     homeScreen = ActivationScreen(deviceId: deviceId);
-  } else if (!reg.trialActive) {
-    // Trial/subscription expired
+  } else if (reg.trialExpire != null && !reg.trialActive) {
+    // Trial expired (only block if there WAS a trial that is now expired)
     homeScreen = _SubscriptionExpiredScreen(
       deviceId: deviceId,
       expireDate: reg.trialExpire,
@@ -68,12 +68,15 @@ void main() async {
         await prefs.setString('m3u_active_url', user.m3uUrl);
         await prefs.remove('xtream_server');
         homeScreen = const DashboardScreen(sessionType: 'm3u');
-      } else {
+      } else if (user.serverUrl.isNotEmpty) {
         await prefs.setString('xtream_server', user.serverUrl);
         await prefs.setString('xtream_username', user.username);
         await prefs.setString('xtream_password', user.password);
         await prefs.remove('m3u_active_url');
         await xtreamService.loadSavedPlaylist();
+        homeScreen = const DashboardScreen(sessionType: 'xtream');
+      } else {
+        // Credentials not set yet in panel — go to dashboard anyway
         homeScreen = const DashboardScreen(sessionType: 'xtream');
       }
     } else if (auth.statusCode == 404) {

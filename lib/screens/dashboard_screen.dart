@@ -141,12 +141,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
                 // ── Main grid ────────────────────────────────────────────
-                Center(
-                  child: IntrinsicHeight(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                Expanded(
+                  child: Center(
+                    child: IntrinsicHeight(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
                         // Sol: Live TV kare kart
                         SizedBox(
                           width: 220,
@@ -207,11 +208,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ],
                           ),
                         ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const Spacer(),
+                ), // Row + IntrinsicHeight + Center + Expanded
 
                 // ── Footer ───────────────────────────────────────────────
                 const SizedBox(height: 20),

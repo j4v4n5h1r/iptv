@@ -240,9 +240,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             body: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               children: [
-                // ── Appearance ────────────────────────────────────────────
-                _sectionHeader(l10n.get('settings_theme')),
-
                 // ── Language ──────────────────────────────────────────────
                 _sectionHeader(l10n.get('settings_language')),
                 _settingsTile(
