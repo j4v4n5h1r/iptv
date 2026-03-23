@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/m3u_service.dart';
 import 'home_screen.dart';
 import 'recents_screen.dart';
 import 'settings_screen.dart';
@@ -68,21 +67,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _reload() async {
-    if (_isM3u) {
-      final playlist = await M3uService.getActive();
-      if (playlist != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reloading playlist...')));
-        await M3uService.fetchAndParse(playlist.url);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Playlist reloaded')));
-      }
-    } else {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reloading channels...')));
-    }
-  }
 
   void _exit() {
     showDialog(
@@ -202,7 +186,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 onPressed: () => Navigator.push(context,
                                   MaterialPageRoute(builder: (_) => const SettingsScreen())))),
                               const SizedBox(height: 12),
-                              Expanded(child: _ActionBtn(focusNode: _reloadFocus,   icon: Icons.refresh,     label: 'Reload',   onPressed: _reload)),
+                              Expanded(child: _ActionBtn(focusNode: _reloadFocus,   icon: Icons.favorite,    label: 'Favorites', onPressed: () => _openSection('favorites'))),
                               const SizedBox(height: 12),
                               Expanded(child: _ActionBtn(focusNode: _exitFocus,     icon: Icons.exit_to_app, label: 'Exit',     onPressed: _exit)),
                             ],
