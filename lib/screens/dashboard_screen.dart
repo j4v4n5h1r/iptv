@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
 import 'recents_screen.dart';
 import 'settings_screen.dart';
-import 'login_screen.dart';
+import 'activation_screen.dart';
+import '../services/device_service.dart';
 
 // Renk paleti — Ubuntu panel teması
 const _kBg        = Color(0xFF0E001A); // --bg
@@ -68,21 +70,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
 
-  void _exit() {
-    showDialog(
+  void _logout() async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: _kCard,
-        title: const Text('Exit', style: TextStyle(color: Colors.white)),
-        content: const Text('Are you sure you want to exit?',
+        title: const Text('Logout', style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to logout?',
             style: TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx),
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
-          TextButton(onPressed: () => SystemNavigator.pop(),
-              child: const Text('Exit', style: TextStyle(color: _kBlue))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Logout', style: TextStyle(color: _kBlue))),
         ],
       ),
+    );
+    if (confirmed != true) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('xtream_server');
+    await prefs.remove('xtream_username');
+    await prefs.remove('xtream_password');
+    await prefs.remove('m3u_active_url');
+    final deviceId = await DeviceService.getDeviceId();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: deviceId)),
+      (route) => false,
     );
   }
 
@@ -155,8 +170,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
                                       onPressed: () => _openSection('recents')),
                                     _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
-                                      onPressed: () => Navigator.pushReplacement(context,
-                                        MaterialPageRoute(builder: (_) => const LoginScreen()))),
+                                      onPressed: () async {
+                                        final id = await DeviceService.getDeviceId();
+                                        if (!mounted) return;
+                                        Navigator.pushReplacement(context,
+                                          MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: id)));
+                                      }),
                                     _GridItem(focusNode: _moviesFocus,   icon: Icons.play_circle,   label: 'Movies',    onPressed: () {}),
                                     _GridItem(focusNode: _seriesFocus,   icon: Icons.movie_filter,  label: 'Series',    onPressed: () {}),
                                   ],
@@ -168,8 +187,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
                                       onPressed: () => _openSection('recents')),
                                     _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
-                                      onPressed: () => Navigator.pushReplacement(context,
-                                        MaterialPageRoute(builder: (_) => const LoginScreen()))),
+                                      onPressed: () async {
+                                        final id = await DeviceService.getDeviceId();
+                                        if (!mounted) return;
+                                        Navigator.pushReplacement(context,
+                                          MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: id)));
+                                      }),
                                   ],
                                 ),
                         ),
@@ -188,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const SizedBox(height: 12),
                               Expanded(child: _ActionBtn(focusNode: _reloadFocus,   icon: Icons.favorite,    label: 'Favorites', onPressed: () => _openSection('favorites'))),
                               const SizedBox(height: 12),
-                              Expanded(child: _ActionBtn(focusNode: _exitFocus,     icon: Icons.exit_to_app, label: 'Exit',     onPressed: _exit)),
+                              Expanded(child: _ActionBtn(focusNode: _exitFocus,     icon: Icons.logout,      label: 'Logout',   onPressed: _logout)),
                             ],
                           ),
                         ),

@@ -37,7 +37,7 @@ router.post('/', (req, res) => {
   const { server_id, mac_user_id, count = 1 } = req.body;
   const num = Math.min(parseInt(count) || 1, 50);
 
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const chars = '0123456789';
   function genCode() {
     let code = '';
     for (let i = 0; i < 16; i++) {

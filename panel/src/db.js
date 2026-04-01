@@ -52,7 +52,16 @@ db.exec(`
     server_id INTEGER REFERENCES servers(id) ON DELETE SET NULL,
     mac_user_id INTEGER REFERENCES mac_users(id) ON DELETE SET NULL,
     used_by TEXT,
+    device_limit INTEGER NOT NULL DEFAULT 5,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS code_devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code_id INTEGER NOT NULL REFERENCES activation_codes(id) ON DELETE CASCADE,
+    mac_address TEXT NOT NULL,
+    activated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(code_id, mac_address)
   );
 
   CREATE TABLE IF NOT EXISTS trials (

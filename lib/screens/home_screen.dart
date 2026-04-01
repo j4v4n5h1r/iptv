@@ -12,7 +12,8 @@ import '../services/update_service.dart';
 import '../models/channel.dart';
 import 'player_screen.dart';
 import 'series_screen.dart';
-import 'login_screen.dart';
+import 'activation_screen.dart';
+import '../services/device_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final String sessionType; // 'xtream' or 'm3u'
@@ -443,16 +444,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('xtream_server');
+    await prefs.remove('xtream_username');
+    await prefs.remove('xtream_password');
+    await prefs.remove('m3u_active_url');
     if (_isM3u) {
       await M3uService.clearActive();
     } else {
       final xtream = Provider.of<XtreamService>(context, listen: false);
       xtream.logout();
     }
+    final deviceId = await DeviceService.getDeviceId();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: deviceId)),
         (route) => false,
       );
     }

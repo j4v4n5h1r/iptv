@@ -33,13 +33,15 @@
           value="<%= user ? user.title : '' %>" required>
       </div>
 
+      <% if (user && user.mac_address) { %>
       <div class="form-group">
-        <label class="form-label"><span class="prompt">--</span> MAC Address</label>
-        <input type="text" name="mac_address" id="field-mac" class="form-control"
-          placeholder="AA:BB:CC:DD:EE:FF"
-          value="<%= user ? user.mac_address : '' %>" required
-          style="text-transform:uppercase; letter-spacing:.5px;">
+        <label class="form-label"><span class="prompt">--</span> MAC Address <span style="color:var(--text-muted);font-size:13px;">(assigned by device)</span></label>
+        <input type="text" name="mac_address" class="form-control" value="<%= user.mac_address %>" readonly
+          style="opacity:0.6; cursor:default;">
       </div>
+      <% } else { %>
+      <input type="hidden" name="mac_address" value="PENDING">
+      <% } %>
 
       <input type="hidden" name="protection" value="NO">
 
@@ -59,21 +61,11 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label"><span class="prompt">--</span> Server (DNS)</label>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <select id="serverSelect" class="form-control" style="flex:0 0 200px;" onchange="onServerSelect(this)">
-            <option value="">— Quick select —</option>
-            <% servers.forEach(s => { %>
-              <option value="<%= s.url %>" <%= (user && user.server_id == s.id) ? 'selected' : '' %>>
-                <%= s.title %>
-              </option>
-            <% }) %>
-          </select>
-          <input type="text" name="server_url" id="field-server-url" class="form-control"
-            placeholder="http://yourserver.com"
-            value="<%= user && user.server_url ? user.server_url : '' %>">
-        </div>
-        <div class="form-hint">Select from list or type a URL directly.</div>
+        <label class="form-label"><span class="prompt">--</span> Server URL</label>
+        <input type="text" name="server_url" id="field-server-url" class="form-control"
+          placeholder="http://yourserver.com"
+          value="<%= user && user.server_url ? user.server_url : '' %>">
+        <div class="form-hint">e.g. http://yourserver.com:8080</div>
       </div>
 
       <button type="submit" class="btn btn-primary">
@@ -106,10 +98,4 @@ function onServerSelect(sel) {
   if (sel.value) document.getElementById('field-server-url').value = sel.value;
 }
 
-// Auto-uppercase MAC address
-document.getElementById('field-mac').addEventListener('input', function() {
-  const pos = this.selectionStart;
-  this.value = this.value.toUpperCase();
-  this.setSelectionRange(pos, pos);
-});
 </script>

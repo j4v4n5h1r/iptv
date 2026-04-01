@@ -48,7 +48,10 @@ router.get('/create', (req, res) => {
 
 function resolveServerId(serverUrl) {
   if (!serverUrl) return null;
-  const url = serverUrl.trim();
+  let url = serverUrl.trim();
+  if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'http://' + url;
+  }
   const existing = db.prepare('SELECT id FROM servers WHERE url = ?').get(url);
   if (existing) return existing.id;
   // Auto-create server entry if URL is new
@@ -61,17 +64,18 @@ function resolveServerId(serverUrl) {
 // Create submit
 router.post('/', (req, res) => {
   const { title, mac_address, username, password, protection, m3u_address, server_url } = req.body;
-  if (!title || !mac_address || !username || !password) {
-    req.flash('error', 'Title, MAC address, username and password are required.');
+  if (!title || !username || !password) {
+    req.flash('error', 'Title, username and password are required.');
     return res.redirect('/mac-users/create');
   }
   try {
     const sid = resolveServerId(server_url);
+    const mac = mac_address ? mac_address.trim().toUpperCase() : 'PENDING-' + Date.now();
     db.prepare(`
       INSERT INTO mac_users (title, mac_address, username, password, protection, m3u_address, server_id)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
-      title.trim(), mac_address.trim().toUpperCase(),
+      title.trim(), mac,
       username.trim(), password.trim(),
       protection === 'YES' ? 'YES' : 'NO',
       m3u_address ? m3u_address.trim() : null,
@@ -102,18 +106,20 @@ router.get('/:id/edit', (req, res) => {
 // Edit submit
 router.post('/:id', (req, res) => {
   const { title, mac_address, username, password, protection, m3u_address, server_url } = req.body;
-  if (!title || !mac_address || !username || !password) {
-    req.flash('error', 'Title, MAC address, username and password are required.');
+  if (!title || !username || !password) {
+    req.flash('error', 'Title, username and password are required.');
     return res.redirect(`/mac-users/${req.params.id}/edit`);
   }
   try {
     const sid = resolveServerId(server_url);
+    const existing = db.prepare('SELECT mac_address FROM mac_users WHERE id = ?').get(req.params.id);
+    const mac = (mac_address && !mac_address.startsWith('PENDING')) ? mac_address.trim().toUpperCase() : (existing ? existing.mac_address : 'PENDING-' + Date.now());
     db.prepare(`
       UPDATE mac_users
       SET title=?, mac_address=?, username=?, password=?, protection=?, m3u_address=?, server_id=?
       WHERE id=?
     `).run(
-      title.trim(), mac_address.trim().toUpperCase(),
+      title.trim(), mac,
       username.trim(), password.trim(),
       protection === 'YES' ? 'YES' : 'NO',
       m3u_address ? m3u_address.trim() : null,

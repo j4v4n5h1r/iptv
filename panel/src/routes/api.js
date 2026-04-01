@@ -77,23 +77,38 @@ router.post('/activate', (req, res) => {
   if (!mac_address || !code) return apiError(res, 400, 'mac_address and code are required');
 
   const mac = mac_address.trim().toUpperCase();
+  const normalizedCode = code.trim().toUpperCase().replace(/-/g, '');
   const activationCode = db.prepare(
-    "SELECT * FROM activation_codes WHERE code = ? AND status = 'unused'"
-  ).get(code.trim().toUpperCase());
+    "SELECT * FROM activation_codes WHERE REPLACE(code, '-', '') = ?"
+  ).get(normalizedCode);
 
   if (!activationCode) {
-    return apiError(res, 400, 'Invalid or already used activation code.');
+    return apiError(res, 400, 'Invalid activation code.');
   }
 
-  // Mark code as used
+  // Check device limit — same MAC can re-activate unlimited times
+  const alreadyRegistered = db.prepare(
+    'SELECT id FROM code_devices WHERE code_id = ? AND mac_address = ?'
+  ).get(activationCode.id, mac);
+
+  if (!alreadyRegistered) {
+    const deviceCount = db.prepare(
+      'SELECT COUNT(*) as cnt FROM code_devices WHERE code_id = ?'
+    ).get(activationCode.id).cnt;
+
+    const limit = activationCode.device_limit || 5;
+    if (deviceCount >= limit) {
+      return apiError(res, 403, `Device limit reached. This code allows max ${limit} devices.`);
+    }
+
+    // Register this new device
+    db.prepare('INSERT INTO code_devices (code_id, mac_address) VALUES (?, ?)')
+      .run(activationCode.id, mac);
+  }
+
+  // Mark code as used and track last device
   db.prepare("UPDATE activation_codes SET status='used', used_by=? WHERE id=?")
     .run(mac, activationCode.id);
-
-  // Get server linked to the code
-  let serverInfo = null;
-  if (activationCode.server_id) {
-    serverInfo = db.prepare('SELECT * FROM servers WHERE id = ?').get(activationCode.server_id);
-  }
 
   // If activation code is linked to a specific mac_user, bind this MAC to that user
   let linkedUser = null;
@@ -105,7 +120,7 @@ router.post('/activate', (req, res) => {
     }
   }
 
-  // If no linked user, create a new mac_users entry
+  // If no linked user, create or update mac_users entry
   if (!linkedUser) {
     const existing = db.prepare('SELECT id FROM mac_users WHERE mac_address = ?').get(mac);
     if (!existing) {
@@ -119,7 +134,6 @@ router.post('/activate', (req, res) => {
   return res.json({
     success: true,
     message: 'Activated successfully.',
-    server: serverInfo ? { url: serverInfo.url, title: serverInfo.title } : null,
   });
 });
 

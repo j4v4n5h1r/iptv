@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:media_kit/media_kit.dart' show MediaKit; // ignore: depend_on_referenced_packages
-import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/activation_screen.dart';
 import 'services/xtream_service.dart';
@@ -24,71 +23,72 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final xtreamService = XtreamService();
   final appSettings = AppSettings();
-  if (_hasXtreamSession(prefs)) await xtreamService.loadSavedPlaylist();
   await appSettings.load();
 
-  // ── Startup flow ──────────────────────────────────────────────────────────
-  // 1. Fetch panel settings — best effort, currently unused at runtime
-  await BackendService.fetchSettings();
+  // ── Fast path: if we have a cached session, show dashboard immediately ──
+  // Backend auth runs in background and updates credentials silently.
+  final hasXtream = _hasXtreamSession(prefs);
+  final hasM3u = _hasM3uSession(prefs);
 
-  // 2. Get stable device ID
-  final deviceId = await DeviceService.getDeviceId();
-
-  // 3. Register device → decide which screen to show
   Widget homeScreen;
 
-  final reg = await BackendService.registerDevice(deviceId);
-
-  if (!reg.success) {
-    // Backend unreachable — fall back to existing session or manual login
-    final hasSession = _hasXtreamSession(prefs) || _hasM3uSession(prefs);
-    if (hasSession) {
-      final sessionType = _hasXtreamSession(prefs) ? 'xtream' : 'm3u';
-      homeScreen = DashboardScreen(sessionType: sessionType);
-    } else {
-      homeScreen = const LoginScreen();
-    }
-  } else if (!reg.registered) {
-    // Device not registered → show activation screen
-    homeScreen = ActivationScreen(deviceId: deviceId);
-  } else if (reg.trialExpire != null && !reg.trialActive) {
-    // Trial expired (only block if there WAS a trial that is now expired)
-    homeScreen = _SubscriptionExpiredScreen(
-      deviceId: deviceId,
-      expireDate: reg.trialExpire,
-    );
-  } else {
-    // Registered + active → authenticate to get/refresh stream credentials
-    final auth = await BackendService.authenticate(deviceId);
-
-    if (auth.success && auth.user != null) {
+  if (hasXtream || hasM3u) {
+    // Load cached playlist without waiting for backend
+    if (hasXtream) await xtreamService.loadSavedPlaylist();
+    final sessionType = hasXtream ? 'xtream' : 'm3u';
+    homeScreen = DashboardScreen(sessionType: sessionType);
+    // Background: refresh credentials from backend (fire & forget)
+    DeviceService.getDeviceId().then((deviceId) async {
+      BackendService.fetchSettings(); // fire & forget
+      final reg = await BackendService.registerDevice(deviceId);
+      if (!reg.success || !reg.registered) return;
+      if (reg.trialExpire != null && !reg.trialActive) return;
+      final auth = await BackendService.authenticate(deviceId);
+      if (!auth.success || auth.user == null) return;
       final user = auth.user!;
-      // Save/update credentials
       if (user.m3uUrl.isNotEmpty) {
         await prefs.setString('m3u_active_url', user.m3uUrl);
-        await prefs.remove('xtream_server');
-        homeScreen = const DashboardScreen(sessionType: 'm3u');
       } else if (user.serverUrl.isNotEmpty) {
         await prefs.setString('xtream_server', user.serverUrl);
         await prefs.setString('xtream_username', user.username);
         await prefs.setString('xtream_password', user.password);
-        await prefs.remove('m3u_active_url');
-        await xtreamService.loadSavedPlaylist();
-        homeScreen = const DashboardScreen(sessionType: 'xtream');
-      } else {
-        // Credentials not set yet in panel — go to dashboard anyway
-        homeScreen = const DashboardScreen(sessionType: 'xtream');
       }
-    } else if (auth.statusCode == 404) {
+    });
+  } else {
+    // No cached session — must contact backend to decide screen
+    BackendService.fetchSettings(); // fire & forget
+    final deviceId = await DeviceService.getDeviceId();
+    final reg = await BackendService.registerDevice(deviceId);
+
+    if (!reg.success) {
       homeScreen = ActivationScreen(deviceId: deviceId);
-    } else if (auth.statusCode == 403) {
-      homeScreen = _SubscriptionExpiredScreen(deviceId: deviceId);
+    } else if (!reg.registered) {
+      homeScreen = ActivationScreen(deviceId: deviceId);
+    } else if (reg.trialExpire != null && !reg.trialActive) {
+      homeScreen = _SubscriptionExpiredScreen(
+        deviceId: deviceId,
+        expireDate: reg.trialExpire,
+      );
     } else {
-      // Auth failed but we may have a cached session
-      final hasSession = _hasXtreamSession(prefs) || _hasM3uSession(prefs);
-      if (hasSession) {
-        final sessionType = _hasXtreamSession(prefs) ? 'xtream' : 'm3u';
-        homeScreen = DashboardScreen(sessionType: sessionType);
+      final auth = await BackendService.authenticate(deviceId);
+      if (auth.success && auth.user != null) {
+        final user = auth.user!;
+        if (user.m3uUrl.isNotEmpty) {
+          await prefs.setString('m3u_active_url', user.m3uUrl);
+          await prefs.remove('xtream_server');
+          homeScreen = const DashboardScreen(sessionType: 'm3u');
+        } else if (user.serverUrl.isNotEmpty) {
+          await prefs.setString('xtream_server', user.serverUrl);
+          await prefs.setString('xtream_username', user.username);
+          await prefs.setString('xtream_password', user.password);
+          await prefs.remove('m3u_active_url');
+          await xtreamService.loadSavedPlaylist();
+          homeScreen = const DashboardScreen(sessionType: 'xtream');
+        } else {
+          homeScreen = const DashboardScreen(sessionType: 'xtream');
+        }
+      } else if (auth.statusCode == 403) {
+        homeScreen = _SubscriptionExpiredScreen(deviceId: deviceId);
       } else {
         homeScreen = ActivationScreen(deviceId: deviceId);
       }

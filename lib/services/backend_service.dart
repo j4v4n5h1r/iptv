@@ -107,7 +107,7 @@ class DemoResult {
 }
 
 class BackendService {
-  static const _timeout = Duration(seconds: 15);
+  static const _timeout = Duration(seconds: 6);
 
   static Map<String, String> get _headers => {'Content-Type': 'application/json'};
 
