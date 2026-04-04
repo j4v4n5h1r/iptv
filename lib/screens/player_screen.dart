@@ -32,6 +32,7 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   late final Player _player;
   late final VideoController _videoController;
+  late final Widget _videoWidget;
   late Channel _currentChannel;
 
   bool _showControls = true;
@@ -49,6 +50,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Duration _duration = Duration.zero;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration>? _durationSub;
+  StreamSubscription<bool>? _bufferingSub;
 
   Timer? _hideControlsTimer;
   Timer? _osdTimer;
@@ -66,24 +68,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void initState() {
     super.initState();
     _currentChannel = widget.channel;
-    _player = Player();
-    _videoController = VideoController(_player);
+    _player = Player(
+      configuration: const PlayerConfiguration(
+        bufferSize: 8 * 1024 * 1024, // 8MB — daha hızlı başlangıç, düşük RAM kullanımı
+        logLevel: MPVLogLevel.error,
+      ),
+    );
+    _videoController = VideoController(
+      _player,
+      configuration: const VideoControllerConfiguration(
+        hwdec: 'auto',           // tam donanım hızlandırma
+        androidAttachSurfaceAfterVideoParameters: false,
+      ),
+    );
+    _videoWidget = RepaintBoundary(
+      child: SizedBox.expand(
+        child: Video(controller: _videoController, controls: NoVideoControls, fit: BoxFit.contain),
+      ),
+    );
 
-    _player.stream.buffering.listen((buffering) {
-      if (mounted) setState(() => _isBuffering = buffering);
+    _bufferingSub = _player.stream.buffering.listen((buffering) {
+      if (mounted && buffering != _isBuffering) setState(() => _isBuffering = buffering);
     });
 
-    DateTime lastPositionUpdate = DateTime.now();
     _positionSub = _player.stream.position.listen((pos) {
       if (!mounted || _isScrubbing) return;
-      final now = DateTime.now();
-      if (now.difference(lastPositionUpdate).inMilliseconds < 500) return;
-      lastPositionUpdate = now;
-      setState(() => _position = pos);
+      if (widget.isMovie) {
+        final diff = (pos.inSeconds - _position.inSeconds).abs();
+        if (diff >= 1) setState(() => _position = pos);
+      }
     });
 
     _durationSub = _player.stream.duration.listen((dur) {
-      if (mounted) setState(() => _duration = dur);
+      if (mounted && dur != _duration) setState(() => _duration = dur);
     });
 
     _openMedia(_currentChannel.url);
@@ -250,6 +267,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void dispose() {
     _hideControlsTimer?.cancel();
     _osdTimer?.cancel();
+    _bufferingSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();
     _player.dispose();
@@ -277,14 +295,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           onTap: _toggleControls,
           child: Stack(
             children: [
-              // Video
-              SizedBox.expand(
-                child: Video(
-                  controller: _videoController,
-                  controls: NoVideoControls,
-                  fit: BoxFit.contain,
-                ),
-              ),
+              // Video — initState'de bir kez oluşturuldu, rebuild yok
+              _videoWidget,
 
               // Buffering indicator
               if (_isBuffering)
@@ -519,35 +531,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Widget _buildControlBtn(IconData icon, VoidCallback onPressed, {double size = 52, FocusNode? focusNode}) {
-    final node = focusNode ?? FocusNode();
-    return ListenableBuilder(
-      listenable: node,
-      builder: (_, __) {
-        final focused = node.hasFocus;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: focused ? Colors.white.withValues(alpha: 0.40) : Colors.white.withValues(alpha: 0.15),
-            border: focused ? Border.all(color: Colors.white, width: 3) : null,
-            boxShadow: focused
-                ? [BoxShadow(color: Colors.white.withValues(alpha: 0.55), blurRadius: 18, spreadRadius: 2)]
-                : [],
-          ),
-          child: IconButton(
-            focusNode: node,
-            icon: Icon(icon, color: Colors.white, size: size),
-            onPressed: () {
-              _resetHideTimer();
-              onPressed();
-            },
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shape: const CircleBorder(),
-            ),
-          ),
-        );
+    return IconButton(
+      focusNode: focusNode,
+      icon: Icon(icon, color: Colors.white, size: size),
+      onPressed: () {
+        _resetHideTimer();
+        onPressed();
       },
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.white.withValues(alpha: 0.15),
+        shape: const CircleBorder(),
+      ),
     );
   }
 
