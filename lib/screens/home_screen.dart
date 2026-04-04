@@ -173,12 +173,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       setState(() => _loadingCategories = true);
       final cats = await xtream.getVodCategories();
       setState(() { _vodCategories = cats; _loadingCategories = false; });
-      _loadVodChannels(null);
     } else if (index == 2 && _seriesCategories.isEmpty) {
       setState(() => _loadingCategories = true);
       final cats = await xtream.getSeriesCategories();
       setState(() { _seriesCategories = cats; _loadingCategories = false; });
-      _loadSeriesList(null);
     }
   }
 
@@ -268,12 +266,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       setState(() { _selectedM3uGroup = catId; _categoryChosen = catId != null || true; });
       return;
     }
-    // catId == null means "go back to category page"
+    // catId == null means "go back to category page" — don't reload
     if (catId == null && _categoryChosen) {
       setState(() { _categoryChosen = false; });
-      if (_tabIndex == 0) _loadLiveChannels(null);
-      else if (_tabIndex == 1) _loadVodChannels(null);
-      else _loadSeriesList(null);
       return;
     }
     setState(() => _categoryChosen = true);
@@ -683,32 +678,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         final focused = Focus.of(ctx).hasFocus;
         return GestureDetector(
           onTap: () => _onCategoryTap(id),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: focused ? const Color(0xFF6B3E12) : const Color(0xFF3D2008),
+              border: Border.all(
+                color: focused ? const Color(0xFFE8C47A) : Colors.white.withValues(alpha: 0.18),
+                width: focused ? 2.5 : 1,
+              ),
+              boxShadow: focused
+                  ? [BoxShadow(color: const Color(0xFFE8C47A).withValues(alpha: 0.5), blurRadius: 12, spreadRadius: 1)]
+                  : [],
+            ),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                ColorFiltered(
-                  colorFilter: ColorFilter.matrix(focused
-                      ? [0.85,0,0,0,0, 0,0.85,0,0,0, 0,0,0.85,0,0, 0,0,0,1,0]
-                      : [0.50,0,0,0,0, 0,0.50,0,0,0, 0,0,0.50,0,0, 0,0,0,1,0]),
-                  child: Image.asset('assets/wood-tile-warm.png', fit: BoxFit.cover),
-                ),
-                Container(color: Colors.black.withValues(alpha: focused ? 0.10 : 0.30)),
-                // border
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 120),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: focused ? const Color(0xFFE8C47A) : Colors.white.withValues(alpha: 0.18),
-                      width: focused ? 2.5 : 1,
-                    ),
-                    boxShadow: focused
-                        ? [BoxShadow(color: const Color(0xFFE8C47A).withValues(alpha: 0.5), blurRadius: 12, spreadRadius: 1)]
-                        : [],
-                  ),
-                ),
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),

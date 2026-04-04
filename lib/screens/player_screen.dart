@@ -73,8 +73,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (mounted) setState(() => _isBuffering = buffering);
     });
 
+    DateTime lastPositionUpdate = DateTime.now();
     _positionSub = _player.stream.position.listen((pos) {
-      if (mounted && !_isScrubbing) setState(() => _position = pos);
+      if (!mounted || _isScrubbing) return;
+      final now = DateTime.now();
+      if (now.difference(lastPositionUpdate).inMilliseconds < 500) return;
+      lastPositionUpdate = now;
+      setState(() => _position = pos);
     });
 
     _durationSub = _player.stream.duration.listen((dur) {
@@ -299,7 +304,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               if (_showChannelList)
                 _buildChannelListOverlay(),
 
-              // Channel list FAB — sadece controls açıkken göster
+              // Channel list FAB — controls ile birlikte göster/gizle
               if (_showControls && !_showChannelList && !widget.isMovie)
                 Positioned(
                   bottom: 80,
@@ -353,21 +358,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
             left: 16,
             child: Row(
               children: [
-                ListenableBuilder(
-                  listenable: _backFocus,
-                  builder: (context, _) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 120),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: _backFocus.hasFocus ? Border.all(color: Colors.white, width: 2.5) : null,
-                      boxShadow: _backFocus.hasFocus ? [BoxShadow(color: Colors.white.withValues(alpha: 0.5), blurRadius: 16)] : [],
-                    ),
-                    child: IconButton(
-                      focusNode: _backFocus,
-                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
+                IconButton(
+                  focusNode: _backFocus,
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
+                  onPressed: () => Navigator.pop(context),
                 ),
                 IconButton(
                   icon: const Icon(Icons.picture_in_picture_alt, color: Colors.white, size: 24),
@@ -528,20 +522,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final node = focusNode ?? FocusNode();
     return ListenableBuilder(
       listenable: node,
-      builder: (context, _) {
+      builder: (_, __) {
         final focused = node.hasFocus;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: focused
-                ? Colors.white.withValues(alpha: 0.35)
-                : Colors.white.withValues(alpha: 0.15),
-            border: focused
-                ? Border.all(color: Colors.white, width: 3)
-                : null,
+            color: focused ? Colors.white.withValues(alpha: 0.40) : Colors.white.withValues(alpha: 0.15),
+            border: focused ? Border.all(color: Colors.white, width: 3) : null,
             boxShadow: focused
-                ? [BoxShadow(color: Colors.white.withValues(alpha: 0.6), blurRadius: 20, spreadRadius: 2)]
+                ? [BoxShadow(color: Colors.white.withValues(alpha: 0.55), blurRadius: 18, spreadRadius: 2)]
                 : [],
           ),
           child: IconButton(
