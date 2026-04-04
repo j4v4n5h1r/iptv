@@ -6,9 +6,9 @@ import '../services/backend_service.dart';
 import '../services/xtream_service.dart';
 import 'dashboard_screen.dart';
 
-const _kBg   = Color(0xFF0B1118);
-const _kCard = Color(0xFF1A242D);
-const _kBlue = Color(0xFF60A5FA);
+const _kBg   = Color(0xFF1A0F00);
+const _kCard = Color(0xFF2C1A06);
+const _kBlue = Color(0xFFD4A017);
 
 class ActivationScreen extends StatefulWidget {
   final String deviceId;
@@ -148,18 +148,56 @@ class _ActivationScreenState extends State<ActivationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
-      body: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Positioned.fill(child: Image.asset('assets/wood-bg-dark.jpg', fit: BoxFit.cover)),
+          Container(color: Colors.black.withValues(alpha: 0.45)),
+          SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+            child: Center(
+            child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              RichText(
-                text: const TextSpan(
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
                   children: [
-                    TextSpan(text: 'WALLYT', style: TextStyle(color: _kBlue)),
-                    TextSpan(text: 'TV', style: TextStyle(color: Colors.white)),
+                    ColorFiltered(
+                      colorFilter: const ColorFilter.matrix([
+                        0.55,0,0,0,0, 0,0.55,0,0,0, 0,0,0.55,0,0, 0,0,0,1,0
+                      ]),
+                      child: Image.asset('assets/wood-tile-warm.png',
+                          width: 260, height: 56, fit: BoxFit.cover),
+                    ),
+                    Container(
+                      width: 260, height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.30),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.tv, color: Color(0xFFF5E6D0), size: 22),
+                          SizedBox(width: 10),
+                          Text('VIEWNAX',
+                            style: TextStyle(
+                              color: Color(0xFFF5E6D0),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                              letterSpacing: 5,
+                              shadows: [Shadow(color: Colors.black, blurRadius: 6)],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -175,13 +213,14 @@ class _ActivationScreenState extends State<ActivationScreen> {
                 width: 340,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 decoration: BoxDecoration(
-                  color: _kCard,
+                  color: Colors.black.withValues(alpha: 0.45),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                 ),
                 child: Column(
                   children: [
                     const Text('Enter Activation Code',
-                        style: TextStyle(color: Colors.white70, fontSize: 14)),
+                        style: TextStyle(color: Color(0xFFF5E6D0), fontSize: 14)),
                     const SizedBox(height: 12),
                     Text(
                       _formattedCode.isEmpty ? '---- ---- ---- ----' : _formattedCode,
@@ -194,7 +233,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 8),
-                      Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                      Text(_error!, style: const TextStyle(color: Color(0xFFFFB347), fontSize: 12)),
                     ],
                   ],
                 ),
@@ -207,20 +246,34 @@ class _ActivationScreenState extends State<ActivationScreen> {
               // Activate button
               SizedBox(
                 width: 340,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _kBlue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                height: 52,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ColorFiltered(
+                        colorFilter: const ColorFilter.matrix([
+                          0.7,0,0,0,0, 0,0.7,0,0,0, 0,0,0.7,0,0, 0,0,0,1,0
+                        ]),
+                        child: Image.asset('assets/wood-tile-warm.png', fit: BoxFit.cover),
+                      ),
+                      Material(
+                        color: Colors.black.withValues(alpha: 0.20),
+                        child: InkWell(
+                          onTap: _isLoading ? null : _activate,
+                          child: Center(
+                            child: _isLoading
+                                ? const SizedBox(width: 22, height: 22,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text('Activate',
+                                    style: TextStyle(color: Color(0xFFF5E6D0),
+                                        fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: _isLoading ? null : _activate,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22, height: 22,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Activate',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 12),
@@ -243,9 +296,16 @@ class _ActivationScreenState extends State<ActivationScreen> {
                       : const Text('Try Demo'),
                 ),
               ),
+              const SizedBox(height: 24),
             ],
-          ),
-        ),
+          ),   // Column
+          ),   // Center
+          ),   // IntrinsicHeight
+          ),   // ConstrainedBox
+        ),     // SingleChildScrollView
+        ),     // LayoutBuilder
+        ),     // SafeArea
+        ],
       ),
     );
   }
@@ -293,25 +353,41 @@ class _ActivationScreenState extends State<ActivationScreen> {
                         _addChar(key);
                       }
                     },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      width: 76,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: focused ? _kBlue : _kCard,
+                    child: SizedBox(
+                      width: 76, height: 56,
+                      child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: focused ? _kBlue : Colors.white12,
-                          width: focused ? 2 : 1,
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        key,
-                        style: TextStyle(
-                          color: focused ? Colors.white : Colors.white70,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ColorFiltered(
+                              colorFilter: ColorFilter.matrix(focused
+                                  ? [0.85,0,0,0,0, 0,0.85,0,0,0, 0,0,0.85,0,0, 0,0,0,1,0]
+                                  : [0.45,0,0,0,0, 0,0.45,0,0,0, 0,0,0.45,0,0, 0,0,0,1,0]),
+                              child: Image.asset('assets/wood-tile-warm.png', fit: BoxFit.cover),
+                            ),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 120),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: focused ? 0.10 : 0.35),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: focused ? Colors.white.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.12),
+                                  width: focused ? 2 : 1,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                key,
+                                style: TextStyle(
+                                  color: focused ? Colors.white : const Color(0xFFF5E6D0),
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

@@ -171,7 +171,7 @@ class XtreamService {
     try {
       String url = _apiUrl('get_vod_streams');
       if (categoryId != null) url += '&category_id=$categoryId';
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
       if (res.statusCode == 200) {
         final List data = json.decode(res.body);
         return data.map((s) {

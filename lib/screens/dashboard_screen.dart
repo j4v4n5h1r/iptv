@@ -7,12 +7,10 @@ import 'settings_screen.dart';
 import 'activation_screen.dart';
 import '../services/device_service.dart';
 
-// Renk paleti — Ubuntu panel teması
-const _kBg        = Color(0xFF0E001A); // --bg
-const _kCard      = Color(0xFF1A0030); // --bg-card
-const _kCardHover = Color(0xFF280048); // --bg-hover
-const _kBlue      = Color(0xFFE95420); // Ubuntu orange (--orange)
-const _kBorder    = Color(0xFF3D1A6A); // --border
+// Card sizes & spacing
+const double _kCardSize    = 160.0;
+const double _kCardGap     = 28.0;
+const double _kCardStep    = _kCardSize + _kCardGap; // total slot width per card
 
 class DashboardScreen extends StatefulWidget {
   final String sessionType;
@@ -23,422 +21,326 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final _liveFocus     = FocusNode();
-  final _moviesFocus   = FocusNode();
-  final _seriesFocus   = FocusNode();
-  final _cacheFocus    = FocusNode();
-  final _playlistFocus = FocusNode();
-  final _settingsFocus = FocusNode();
-  final _reloadFocus   = FocusNode();
-  final _exitFocus     = FocusNode();
+  int _selectedIndex = 1; // Live TV default
 
-  bool get _isM3u => widget.sessionType == 'm3u';
+  late final List<_MenuItem> _items;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
-      _liveFocus.requestFocus();
-    });
+    _items = [
+      _MenuItem(icon: Icons.settings,      label: 'Settings',  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
+      _MenuItem(icon: Icons.tv,            label: 'Live TV',   onPressed: () => _open('live')),
+      _MenuItem(icon: Icons.movie,         label: 'Movies',    onPressed: () => _open('vod')),
+      _MenuItem(icon: Icons.video_library, label: 'Series',    onPressed: () => _open('series')),
+      _MenuItem(icon: Icons.favorite,      label: 'Favorites', onPressed: () => _open('favorites')),
+      _MenuItem(icon: Icons.logout,        label: 'Logout',    onPressed: _logout),
+    ];
   }
 
-  @override
-  void dispose() {
-    _liveFocus.dispose();
-    _moviesFocus.dispose();
-    _seriesFocus.dispose();
-    _cacheFocus.dispose();
-    _playlistFocus.dispose();
-    _settingsFocus.dispose();
-    _reloadFocus.dispose();
-    _exitFocus.dispose();
-    super.dispose();
-  }
-
-  void _openSection(String section) {
+  void _open(String section) {
     if (section == 'recents') {
       Navigator.push(context, MaterialPageRoute(builder: (_) => const RecentsScreen()));
       return;
     }
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => HomeScreen(sessionType: widget.sessionType, initialTab: section),
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => HomeScreen(sessionType: widget.sessionType, initialTab: section),
+    ));
   }
 
-
   void _logout() async {
-    final confirmed = await showDialog<bool>(
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: _kCard,
-        title: const Text('Logout', style: TextStyle(color: Colors.white)),
-        content: const Text('Are you sure you want to logout?',
-            style: TextStyle(color: Colors.white70)),
+        backgroundColor: const Color(0xFF1A0D00),
+        title: const Text('Logout', style: TextStyle(color: Color(0xFFF5E6D0))),
+        content: const Text('Are you sure?', style: TextStyle(color: Color(0xFFF5E6D0))),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFFF5E6D0)))),
           TextButton(onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Logout', style: TextStyle(color: _kBlue))),
+              child: const Text('Logout', style: TextStyle(color: Colors.white))),
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (ok != true) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('xtream_server');
     await prefs.remove('xtream_username');
     await prefs.remove('xtream_password');
     await prefs.remove('m3u_active_url');
-    final deviceId = await DeviceService.getDeviceId();
+    final id = await DeviceService.getDeviceId();
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: deviceId)),
-      (route) => false,
-    );
+    Navigator.pushAndRemoveUntil(context,
+      MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: id)),
+      (r) => false);
+  }
+
+  KeyEventResult _handleKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final k = event.logicalKey;
+    if (k == LogicalKeyboardKey.arrowLeft) {
+      if (_selectedIndex > 0) { setState(() => _selectedIndex--); }
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.arrowRight) {
+      if (_selectedIndex < _items.length - 1) { setState(() => _selectedIndex++); }
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter) {
+      _items[_selectedIndex].onPressed();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Shortcuts(
-      shortcuts: {
-        LogicalKeySet(LogicalKeyboardKey.arrowDown):  const DirectionalFocusIntent(TraversalDirection.down),
-        LogicalKeySet(LogicalKeyboardKey.arrowUp):    const DirectionalFocusIntent(TraversalDirection.up),
-        LogicalKeySet(LogicalKeyboardKey.arrowLeft):  const DirectionalFocusIntent(TraversalDirection.left),
-        LogicalKeySet(LogicalKeyboardKey.arrowRight): const DirectionalFocusIntent(TraversalDirection.right),
-        LogicalKeySet(LogicalKeyboardKey.select):     const ActivateIntent(),
-        LogicalKeySet(LogicalKeyboardKey.enter):      const ActivateIntent(),
-      },
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (_, event) => _handleKey(event),
       child: Scaffold(
-        backgroundColor: _kBg,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 40),
-            child: Column(
-              children: [
-                // ── Header: logo sol, tarih sağ ──────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 3),
-                        children: [
-                          TextSpan(text: 'WALLYT', style: TextStyle(color: _kBlue)),
-                          TextSpan(text: 'TV', style: TextStyle(color: Colors.white)),
-                        ],
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            // ── Background: dark wood photo ───────────────────────────
+            Positioned.fill(
+              child: Image.asset('assets/wood-bg-dark.jpg', fit: BoxFit.cover),
+            ),
+            Container(color: Colors.black.withValues(alpha: 0.40)),
+
+            // ── VIEWNAX logo top-center ───────────────────────────────
+            Positioned(
+              top: 24, left: 0, right: 0,
+              child: Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    children: [
+                      ColorFiltered(
+                        colorFilter: const ColorFilter.matrix([
+                          0.55,0,0,0,0, 0,0.55,0,0,0, 0,0,0.55,0,0, 0,0,0,1,0
+                        ]),
+                        child: Image.asset('assets/wood-tile-warm.png',
+                            width: 260, height: 56, fit: BoxFit.cover),
                       ),
-                    ),
-                    const Text('', style: TextStyle(color: Colors.white38, fontSize: 12, fontStyle: FontStyle.italic)),
-                  ],
+                      Container(
+                        width: 260, height: 56,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.30),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.tv, color: Color(0xFFF5E6D0), size: 22),
+                            SizedBox(width: 10),
+                            Text('VIEWNAX',
+                              style: TextStyle(
+                                color: Color(0xFFF5E6D0),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 22,
+                                letterSpacing: 5,
+                                shadows: [Shadow(color: Colors.black, blurRadius: 6)],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 24),
+              ),
+            ),
 
-
-                // ── Main grid ────────────────────────────────────────────
-                Expanded(
-                  child: Center(
-                    child: IntrinsicHeight(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+            // ── Carousel + fixed center frame ─────────────────────────
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: _kCardSize + 32, // extra for glow overflow
+                    child: LayoutBuilder(builder: (context, constraints) {
+                      final screenW = MediaQuery.of(context).size.width;
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
                         children: [
-                        // Sol: Live TV kare kart
-                        SizedBox(
-                          width: 220,
-                          height: 220,
-                          child: _BigCard(
-                            focusNode: _liveFocus,
-                            icon: Icons.tv,
-                            label: 'Live TV',
-                            onPressed: () => _openSection('live'),
+                          // Scrolling cards layer
+                          AnimatedBuilder(
+                            animation: const AlwaysStoppedAnimation(0),
+                            builder: (_, __) => _buildCarousel(screenW),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-
-                        // Orta: 2x2 grid — Live TV ile aynı boyut
-                        SizedBox(
-                          width: 220,
-                          height: 220,
-                          child: _isM3u
-                              ? _GridFour(
-                                  items: [
-                                    _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
-                                      onPressed: () => _openSection('recents')),
-                                    _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
-                                      onPressed: () async {
-                                        final id = await DeviceService.getDeviceId();
-                                        if (!mounted) return;
-                                        Navigator.pushReplacement(context,
-                                          MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: id)));
-                                      }),
-                                    _GridItem(focusNode: _moviesFocus,   icon: Icons.play_circle,   label: 'Movies',    onPressed: () {}),
-                                    _GridItem(focusNode: _seriesFocus,   icon: Icons.movie_filter,  label: 'Series',    onPressed: () {}),
-                                  ],
-                                )
-                              : _GridFour(
-                                  items: [
-                                    _GridItem(focusNode: _moviesFocus,   icon: Icons.play_circle,   label: 'Movies',           onPressed: () => _openSection('vod')),
-                                    _GridItem(focusNode: _seriesFocus,   icon: Icons.movie_filter,  label: 'Series',           onPressed: () => _openSection('series')),
-                                    _GridItem(focusNode: _cacheFocus,    icon: Icons.history,       label: 'Recents',
-                                      onPressed: () => _openSection('recents')),
-                                    _GridItem(focusNode: _playlistFocus, icon: Icons.people,        label: 'Change\nPlaylist',
-                                      onPressed: () async {
-                                        final id = await DeviceService.getDeviceId();
-                                        if (!mounted) return;
-                                        Navigator.pushReplacement(context,
-                                          MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: id)));
-                                      }),
-                                  ],
-                                ),
-                        ),
-                        const SizedBox(width: 16),
-
-                        // Sağ: aksiyon butonları — Live TV ile aynı yükseklik
-                        SizedBox(
-                          width: 170,
-                          height: 220,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(child: _ActionBtn(focusNode: _settingsFocus, icon: Icons.settings,    label: 'Settings',
-                                onPressed: () => Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const SettingsScreen())))),
-                              const SizedBox(height: 12),
-                              Expanded(child: _ActionBtn(focusNode: _reloadFocus,   icon: Icons.favorite,    label: 'Favorites', onPressed: () => _openSection('favorites'))),
-                              const SizedBox(height: 12),
-                              Expanded(child: _ActionBtn(focusNode: _exitFocus,     icon: Icons.logout,      label: 'Logout',   onPressed: _logout)),
-                            ],
-                          ),
-                        ),
+                          // Fixed center selection frame (always on top)
+                          _buildSelectionFrame(),
                         ],
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 24),
+                  // Label
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: Text(
+                      _items[_selectedIndex].label.toUpperCase(),
+                      key: ValueKey(_selectedIndex),
+                      style: const TextStyle(
+                        color: Color(0xFFF5E6D0),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 4,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 10, offset: Offset(0, 2))],
                       ),
                     ),
                   ),
-                ), // Row + IntrinsicHeight + Center + Expanded
-
-                // ── Footer ───────────────────────────────────────────────
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _FooterItem(icon: Icons.telegram, iconColor: _kBlue,                    text: 't.me/Indiantvstore'),
-                    const SizedBox(width: 32),
-                    _FooterItem(icon: Icons.headset,  iconColor: Color(0xFFFBBF24),          text: 'www.indiantvstore.chat'),
-                    const SizedBox(width: 32),
-                    _FooterItem(icon: Icons.phone,    iconColor: Color(0xFFF59E0B),          text: '+44 20 7946 0958'),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
+                ],
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCarousel(double screenW) {
+    // Offset: how much the strip shifts so selected card is at center
+    // Card center position in strip = _selectedIndex * _kCardStep + _kCardSize/2
+    // We want that to be at screenW/2
+    final double stripOffset = screenW / 2 - _selectedIndex * _kCardStep - _kCardSize / 2;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+      // Use transform to slide the row
+      transform: Matrix4.translationValues(stripOffset, 0, 0),
+      transformAlignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: List.generate(_items.length, (i) {
+          final bool focused = i == _selectedIndex;
+          return Padding(
+            padding: EdgeInsets.only(right: i < _items.length - 1 ? _kCardGap : 0),
+            child: _buildCard(i, focused),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildCard(int index, bool focused) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      width: _kCardSize,
+      height: _kCardSize,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: focused ? 0.3 : 0.7),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            // Wood tile image — dimmed when not focused
+            Positioned.fill(
+              child: ColorFiltered(
+                colorFilter: ColorFilter.matrix(focused
+                    ? [1.05,0,0,0,0, 0,1.05,0,0,0, 0,0,1.05,0,0, 0,0,0,1,0]
+                    : [0.65,0,0,0,0, 0,0.65,0,0,0, 0,0,0.65,0,0, 0,0,0,1,0]),
+                child: Image.asset('assets/wood-tile-warm.png', fit: BoxFit.cover),
+              ),
+            ),
+            // Top shine
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: Container(
+                height: _kCardSize * 0.38,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: focused ? 0.20 : 0.08),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Bottom shadow
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Container(
+                height: _kCardSize * 0.3,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [Colors.black.withValues(alpha: 0.45), Colors.transparent],
+                  ),
+                ),
+              ),
+            ),
+            // Icon
+            Center(
+              child: AnimatedScale(
+                scale: focused ? 1.0 : 0.75,
+                duration: const Duration(milliseconds: 220),
+                child: Icon(
+                  _items[index].icon,
+                  color: focused ? Colors.white : const Color(0xFF3B1A00),
+                  size: 68,
+                  shadows: focused
+                      ? [const Shadow(color: Colors.black87, blurRadius: 14, offset: Offset(2, 4))]
+                      : [const Shadow(color: Colors.white30, blurRadius: 4, offset: Offset(-1, -1)),
+                         const Shadow(color: Colors.black54, blurRadius: 6, offset: Offset(2, 3))],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionFrame() {
+    return IgnorePointer(
+      child: Container(
+        width: _kCardSize + 12,
+        height: _kCardSize + 12,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.85), width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.35),
+              blurRadius: 40,
+              spreadRadius: 8,
+            ),
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.12),
+              blurRadius: 80,
+              spreadRadius: 20,
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ── Big card (Live TV) ────────────────────────────────────────────────────────
-class _BigCard extends StatelessWidget {
-  final FocusNode focusNode;
+// ── Model ─────────────────────────────────────────────────────────────────────
+class _MenuItem {
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
-
-  const _BigCard({required this.focusNode, required this.icon, required this.label, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return FocusableActionDetector(
-      focusNode: focusNode,
-      actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => onPressed())},
-      child: ListenableBuilder(
-        listenable: focusNode,
-        builder: (_, __) {
-          final focused = focusNode.hasFocus;
-          return GestureDetector(
-            onTap: onPressed,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color: focused ? _kCardHover : _kCard,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: focused ? _kBlue : _kBorder, width: focused ? 2 : 1),
-                boxShadow: focused ? [BoxShadow(color: _kBlue.withValues(alpha: 0.25), blurRadius: 20)] : null,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: focused ? _kBlue : Colors.white70, size: 64),
-                  const SizedBox(height: 16),
-                  Text(label,
-                    style: TextStyle(
-                      color: focused ? Colors.white : Colors.white70,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ── 2x2 Grid ────────────────────────────────────────────────────────────────
-class _GridItem {
-  final FocusNode focusNode;
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-  const _GridItem({required this.focusNode, required this.icon, required this.label, required this.onPressed});
-}
-
-class _GridFour extends StatelessWidget {
-  final List<_GridItem> items;
-  const _GridFour({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(child: Row(children: [
-          Expanded(child: _SmallCard(item: items[0])),
-          const SizedBox(width: 10),
-          Expanded(child: _SmallCard(item: items[1])),
-        ])),
-        const SizedBox(height: 10),
-        Expanded(child: Row(children: [
-          Expanded(child: _SmallCard(item: items[2])),
-          const SizedBox(width: 10),
-          Expanded(child: _SmallCard(item: items[3])),
-        ])),
-      ],
-    );
-  }
-}
-
-class _SmallCard extends StatelessWidget {
-  final _GridItem item;
-  const _SmallCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return FocusableActionDetector(
-      focusNode: item.focusNode,
-      actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => item.onPressed())},
-      child: ListenableBuilder(
-        listenable: item.focusNode,
-        builder: (_, __) {
-          final focused = item.focusNode.hasFocus;
-          return GestureDetector(
-            onTap: item.onPressed,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color: focused ? _kCardHover : _kCard,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: focused ? _kBlue : _kBorder, width: focused ? 2 : 1),
-                boxShadow: focused ? [BoxShadow(color: _kBlue.withValues(alpha: 0.2), blurRadius: 12)] : null,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, color: focused ? _kBlue : Colors.white60, size: 32),
-                  const SizedBox(height: 8),
-                  Text(item.label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: focused ? Colors.white : Colors.white60,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ── Footer item ───────────────────────────────────────────────────────────────
-class _FooterItem extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String text;
-  const _FooterItem({required this.icon, required this.iconColor, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: iconColor, size: 16),
-        const SizedBox(width: 6),
-        Text(text, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-      ],
-    );
-  }
-}
-
-// ── Action button (sağ kolon) ────────────────────────────────────────────────
-class _ActionBtn extends StatelessWidget {
-  final FocusNode focusNode;
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  const _ActionBtn({required this.focusNode, required this.icon, required this.label, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return FocusableActionDetector(
-      focusNode: focusNode,
-      actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => onPressed())},
-      child: ListenableBuilder(
-        listenable: focusNode,
-        builder: (_, __) {
-          final focused = focusNode.hasFocus;
-          return GestureDetector(
-            onTap: onPressed,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: focused ? _kCardHover : _kCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: focused ? _kBlue : _kBorder, width: focused ? 2 : 1),
-              ),
-              child: Row(
-                children: [
-                  Icon(icon, color: focused ? _kBlue : Colors.white54, size: 20),
-                  const SizedBox(width: 12),
-                  Text(label,
-                    style: TextStyle(
-                      color: focused ? Colors.white : Colors.white70,
-                      fontSize: 15,
-                      fontWeight: focused ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+  const _MenuItem({required this.icon, required this.label, required this.onPressed});
 }

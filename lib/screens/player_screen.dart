@@ -299,8 +299,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
               if (_showChannelList)
                 _buildChannelListOverlay(),
 
-              // Channel list FAB — sadece live/VOD listesinde göster, film izlerken gizle
-              if (!_showChannelList && !widget.isMovie)
+              // Channel list FAB — sadece controls açıkken göster
+              if (_showControls && !_showChannelList && !widget.isMovie)
                 Positioned(
                   bottom: 80,
                   right: 20,
@@ -353,10 +353,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
             left: 16,
             child: Row(
               children: [
-                IconButton(
-                  focusNode: _backFocus,
-                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                  onPressed: () => Navigator.pop(context),
+                ListenableBuilder(
+                  listenable: _backFocus,
+                  builder: (context, _) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: _backFocus.hasFocus ? Border.all(color: Colors.white, width: 2.5) : null,
+                      boxShadow: _backFocus.hasFocus ? [BoxShadow(color: Colors.white.withValues(alpha: 0.5), blurRadius: 16)] : [],
+                    ),
+                    child: IconButton(
+                      focusNode: _backFocus,
+                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.picture_in_picture_alt, color: Colors.white, size: 24),
@@ -514,17 +525,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Widget _buildControlBtn(IconData icon, VoidCallback onPressed, {double size = 52, FocusNode? focusNode}) {
-    return IconButton(
-      focusNode: focusNode,
-      icon: Icon(icon, color: Colors.white, size: size),
-      onPressed: () {
-        _resetHideTimer();
-        onPressed();
+    final node = focusNode ?? FocusNode();
+    return ListenableBuilder(
+      listenable: node,
+      builder: (context, _) {
+        final focused = node.hasFocus;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: focused
+                ? Colors.white.withValues(alpha: 0.35)
+                : Colors.white.withValues(alpha: 0.15),
+            border: focused
+                ? Border.all(color: Colors.white, width: 3)
+                : null,
+            boxShadow: focused
+                ? [BoxShadow(color: Colors.white.withValues(alpha: 0.6), blurRadius: 20, spreadRadius: 2)]
+                : [],
+          ),
+          child: IconButton(
+            focusNode: node,
+            icon: Icon(icon, color: Colors.white, size: size),
+            onPressed: () {
+              _resetHideTimer();
+              onPressed();
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shape: const CircleBorder(),
+            ),
+          ),
+        );
       },
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.white.withValues(alpha: 0.15),
-        shape: const CircleBorder(),
-      ),
     );
   }
 

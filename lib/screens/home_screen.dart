@@ -43,8 +43,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   List<Channel> _seriesList = [];
   String? _selectedSeriesCatId;
 
-  // Favorites
+  // Favorites — Channel objects for list, URL set for O(1) lookup
   final Set<Channel> _favorites = {};
+  final Set<String> _favoriteUrls = {};
 
   // Watchlist (son izlenenler)
   final List<Channel> _watchlist = [];
@@ -59,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   bool _loadingChannels = false;
   bool _loadingCategories = true;
+  bool _categoryChosen = false; // true once user picks a category (incl. All)
   String _searchQuery = '';
 
   final _searchController = TextEditingController();
@@ -164,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _onTabChanged(int index) async {
     _searchController.clear();
+    setState(() => _categoryChosen = false);
     if (_isM3u) return; // M3U'da lazy load yok
     final xtream = Provider.of<XtreamService>(context, listen: false);
     if (index == 1 && _vodCategories.isEmpty) {
@@ -262,9 +265,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _doSelectCategory(String? catId) {
     if (_isM3u) {
-      setState(() => _selectedM3uGroup = catId);
+      setState(() { _selectedM3uGroup = catId; _categoryChosen = catId != null || true; });
       return;
     }
+    // catId == null means "go back to category page"
+    if (catId == null && _categoryChosen) {
+      setState(() { _categoryChosen = false; });
+      if (_tabIndex == 0) _loadLiveChannels(null);
+      else if (_tabIndex == 1) _loadVodChannels(null);
+      else _loadSeriesList(null);
+      return;
+    }
+    setState(() => _categoryChosen = true);
     if (_tabIndex == 0) {
       _loadLiveChannels(catId);
     } else if (_tabIndex == 1) {
@@ -418,8 +430,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (mounted) {
       setState(() {
         _favorites.clear();
+        _favoriteUrls.clear();
         for (final item in list) {
-          _favorites.add(Channel.fromJson(item));
+          final ch = Channel.fromJson(item);
+          _favorites.add(ch);
+          _favoriteUrls.add(ch.url);
         }
       });
     }
@@ -433,11 +448,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _toggleFavorite(Channel channel) {
     setState(() {
-      final exists = _favorites.any((c) => c.url == channel.url);
-      if (exists) {
+      if (_favoriteUrls.contains(channel.url)) {
         _favorites.removeWhere((c) => c.url == channel.url);
+        _favoriteUrls.remove(channel.url);
       } else {
         _favorites.add(channel.copyWith(isFavorite: true));
+        _favoriteUrls.add(channel.url);
       }
     });
     _saveFavorites();
@@ -600,119 +616,196 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ? l10n.get('tab_series')
             : l10n.get('tab_live');
 
+    // Favorites / Recents tabs — go straight to content
+    if (_isFavOrRecentsTab) {
+      return _buildContentPage(sectionTitle, l10n, showBack: true, onBack: () => Navigator.pop(context));
+    }
+
+    // Category not yet chosen → show category grid fullscreen
+    if (!_categoryChosen) {
+      return _buildCategoryPage(sectionTitle, l10n);
+    }
+
+    // Category chosen → show content page, back goes to categories
+    return _buildContentPage(sectionTitle, l10n, showBack: true, onBack: () {
+      _doSelectCategory(null);
+    });
+  }
+
+  Widget _buildCategoryPage(String sectionTitle, AppL10n l10n) {
+    final cats = _currentCategories;
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1118),
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0B1118),
+        backgroundColor: Colors.black.withValues(alpha: 0.50),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white70),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          sectionTitle,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: Text(sectionTitle,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
-      body: Shortcuts(
-        shortcuts: {
-          LogicalKeySet(LogicalKeyboardKey.arrowDown):  const DirectionalFocusIntent(TraversalDirection.down),
-          LogicalKeySet(LogicalKeyboardKey.arrowUp):    const DirectionalFocusIntent(TraversalDirection.up),
-          LogicalKeySet(LogicalKeyboardKey.arrowLeft):  const DirectionalFocusIntent(TraversalDirection.left),
-          LogicalKeySet(LogicalKeyboardKey.arrowRight): const DirectionalFocusIntent(TraversalDirection.right),
-          LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
-          LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
-        },
-        child: Column(
-          children: [
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              child: ListenableBuilder(
-                listenable: _searchFocus,
-                builder: (_, __) {
-                  final focused = _searchFocus.hasFocus;
-                  return Focus(
-                    focusNode: _searchFocus,
-                    onKeyEvent: (_, e) {
-                      if (e is KeyDownEvent &&
-                          (e.logicalKey == LogicalKeyboardKey.select ||
-                           e.logicalKey == LogicalKeyboardKey.enter)) {
-                        _showSearchKeyboard(context);
-                        return KeyEventResult.handled;
-                      }
-                      return KeyEventResult.ignored;
+      body: Stack(
+        children: [
+          Positioned.fill(child: Image.asset('assets/wood-bg-dark.jpg', fit: BoxFit.cover)),
+          Container(color: Colors.black.withValues(alpha: 0.45)),
+          _loadingCategories
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFF5E6D0)))
+              : SafeArea(
+                  child: GridView.builder(
+                    padding: const EdgeInsets.all(20),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      childAspectRatio: 2.8,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                    itemCount: cats.length + 1,
+                    itemBuilder: (ctx, i) {
+                      final isAll = i == 0;
+                      final name = isAll ? 'All' : cats[i - 1].name;
+                      final id = isAll ? null : cats[i - 1].id;
+                      return _buildCategoryGridItem(name, id);
                     },
-                    child: GestureDetector(
-                      onTap: () => _showSearchKeyboard(context),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 100),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: focused ? const Color(0xFFE95420) : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.search, color: Colors.white38, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _searchController.text.isEmpty ? l10n.get('search') : _searchController.text,
-                                style: TextStyle(
-                                  color: _searchController.text.isEmpty ? Colors.white38 : Colors.white,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            if (_searchController.text.isNotEmpty)
-                              GestureDetector(
-                                onTap: () => setState(() => _searchController.clear()),
-                                child: const Icon(Icons.close, color: Colors.white38, size: 18),
-                              ),
-                          ],
-                        ),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryGridItem(String name, String? id) {
+    return FocusableActionDetector(
+      actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _onCategoryTap(id))},
+      child: Builder(builder: (ctx) {
+        final focused = Focus.of(ctx).hasFocus;
+        return GestureDetector(
+          onTap: () => _onCategoryTap(id),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ColorFiltered(
+                  colorFilter: ColorFilter.matrix(focused
+                      ? [0.85,0,0,0,0, 0,0.85,0,0,0, 0,0,0.85,0,0, 0,0,0,1,0]
+                      : [0.50,0,0,0,0, 0,0.50,0,0,0, 0,0,0.50,0,0, 0,0,0,1,0]),
+                  child: Image.asset('assets/wood-tile-warm.png', fit: BoxFit.cover),
+                ),
+                Container(color: Colors.black.withValues(alpha: focused ? 0.10 : 0.30)),
+                // border
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: focused ? const Color(0xFFE8C47A) : Colors.white.withValues(alpha: 0.18),
+                      width: focused ? 2.5 : 1,
+                    ),
+                    boxShadow: focused
+                        ? [BoxShadow(color: const Color(0xFFE8C47A).withValues(alpha: 0.5), blurRadius: 12, spreadRadius: 1)]
+                        : [],
+                  ),
+                ),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        color: focused ? Colors.white : const Color(0xFFF5E6D0),
+                        fontSize: focused ? 13 : 12,
+                        fontWeight: focused ? FontWeight.bold : FontWeight.w600,
+                        letterSpacing: 0.3,
+                        shadows: const [Shadow(color: Colors.black, blurRadius: 6)],
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
-            // Body
-            Expanded(
-              child: _isFavOrRecentsTab
-                  ? _buildChannelGrid(_currentChannels)
-                  : Row(
-                      children: [
-                        // Left: Categories
-                        SizedBox(
-                          width: 170,
-                          child: _loadingCategories
-                              ? const Center(child: CircularProgressIndicator(color: const Color(0xFF60A5FA)))
-                              : _buildCategoryList(),
-                        ),
-                        Container(width: 1, color: Colors.white12),
-                        // Right: Channels
-                        Expanded(
-                          child: _loadingChannels
-                              ? const Center(child: CircularProgressIndicator(color: const Color(0xFF60A5FA)))
-                              : NotificationListener<ScrollEndNotification>(
-                                  onNotification: (_) {
-                                    if (_tabIndex == 0) _loadEpgForVisible();
-                                    return false;
-                                  },
-                                  child: _buildChannelGrid(_currentChannels),
-                                ),
-                        ),
-                      ],
-                    ),
-            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildContentPage(String sectionTitle, AppL10n l10n,
+      {required bool showBack, required VoidCallback onBack}) {
+    // find selected category name for breadcrumb
+    final cats = _currentCategories;
+    String? catName;
+    if (_currentCatId != null) {
+      try {
+        catName = cats.firstWhere((c) => c.id == _currentCatId).name;
+      } catch (_) {}
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.black.withValues(alpha: 0.55),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white70),
+          onPressed: onBack,
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.home, color: Colors.white54, size: 18),
+            const _BreadcrumbArrow(),
+            Text(sectionTitle,
+                style: const TextStyle(color: Colors.white54, fontSize: 14)),
+            if (catName != null) ...[
+              const _BreadcrumbArrow(),
+              Text(catName,
+                  style: const TextStyle(
+                      color: Color(0xFFFFD700), fontSize: 14, fontWeight: FontWeight.bold)),
+            ],
           ],
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(Icons.search, color: Colors.white70),
+              onPressed: () => _showSearchKeyboard(context),
+            ),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(child: Image.asset('assets/wood-bg-dark.jpg', fit: BoxFit.cover)),
+          Container(color: Colors.black.withValues(alpha: 0.60)),
+          SafeArea(
+            child: Shortcuts(
+              shortcuts: {
+                LogicalKeySet(LogicalKeyboardKey.arrowDown):  const DirectionalFocusIntent(TraversalDirection.down),
+                LogicalKeySet(LogicalKeyboardKey.arrowUp):    const DirectionalFocusIntent(TraversalDirection.up),
+                LogicalKeySet(LogicalKeyboardKey.arrowLeft):  const DirectionalFocusIntent(TraversalDirection.left),
+                LogicalKeySet(LogicalKeyboardKey.arrowRight): const DirectionalFocusIntent(TraversalDirection.right),
+                LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
+                LogicalKeySet(LogicalKeyboardKey.enter):  const ActivateIntent(),
+              },
+              child: _loadingChannels
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFF5E6D0)))
+                  : NotificationListener<ScrollEndNotification>(
+                      onNotification: (_) {
+                        if (_tabIndex == 0) _loadEpgForVisible();
+                        return false;
+                      },
+                      child: _buildChannelGrid(_currentChannels),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -780,46 +873,89 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       );
     }
 
-    // Live / Favorites / Recents → list view
-    if (_tabIndex == 0 || _tabIndex == 3 || _tabIndex == 4) {
-      return ListView.builder(
-        itemCount: channels.length,
-        itemBuilder: (ctx, i) => _buildLiveChannelTile(channels[i], i),
-      );
-    }
-    // Series → grid with play icon overlay
-    if (_tabIndex == 2) {
-      return GridView.builder(
-        padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 0.6,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-        ),
-        itemCount: channels.length,
-        itemBuilder: (ctx, i) => _buildSeriesCard(channels[i]),
-      );
-    }
-    // Movies → grid
+    // All tabs → poster grid
+    final bool isLive = _tabIndex == 0 || _tabIndex == 3 || _tabIndex == 4 || _isM3u;
+    final bool isSeries = _tabIndex == 2;
+
     return FocusTraversalGroup(
       policy: ReadingOrderTraversalPolicy(),
       child: GridView.builder(
-        padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 0.65,
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: isLive ? 4 : 6,
+          childAspectRatio: isLive ? 2.2 : 0.65,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
         ),
         itemCount: channels.length,
-        itemBuilder: (ctx, i) => _buildVodCard(channels[i]),
+        itemBuilder: (ctx, i) {
+          if (isLive) return _buildLiveChannelCard(channels[i]);
+          if (isSeries) return _buildSeriesCard(channels[i]);
+          return _buildVodCard(channels[i]);
+        },
       ),
     );
   }
 
+  Widget _buildLiveChannelCard(Channel channel) {
+    final isFav = _favoriteUrls.contains(channel.url);
+    return FocusableActionDetector(
+      actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _onChannelTap(channel))},
+      child: Builder(builder: (ctx) {
+        final focused = Focus.of(ctx).hasFocus;
+        return GestureDetector(
+          onTap: () => _onChannelTap(channel),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            decoration: BoxDecoration(
+              color: focused ? Colors.white.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: focused ? const Color(0xFFE8C47A) : Colors.white.withValues(alpha: 0.10),
+                width: focused ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 52,
+                  child: channel.logo != null && channel.logo!.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                          child: CachedNetworkImage(
+                            imageUrl: channel.logo!,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => const Icon(Icons.live_tv, color: Colors.white24, size: 20),
+                            errorWidget: (_, __, ___) => const Icon(Icons.live_tv, color: Colors.white24, size: 20),
+                          ),
+                        )
+                      : const Icon(Icons.live_tv, color: Colors.white24, size: 20),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    channel.name,
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  isFav ? Icons.favorite : Icons.favorite_border,
+                  color: isFav ? Colors.red : Colors.white24,
+                  size: 14,
+                ),
+                const SizedBox(width: 4),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
   Widget _buildLiveChannelTile(Channel channel, int index) {
-    final isFav = _favorites.any((c) => c.url == channel.url);
+    final isFav = _favoriteUrls.contains(channel.url);
     return InkWell(
       onTap: () => _onChannelTap(channel),
       child: Container(
@@ -905,11 +1041,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildVodCard(Channel channel) {
-    final isFav = _favorites.any((c) => c.url == channel.url);
-    return InkWell(
-      onTap: () => _onChannelTap(channel),
-      borderRadius: BorderRadius.circular(6),
-      child: Column(
+    final isFav = _favoriteUrls.contains(channel.url);
+    return FocusableActionDetector(
+      actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _onChannelTap(channel))},
+      child: Builder(builder: (ctx) {
+        final focused = Focus.of(ctx).hasFocus;
+        return GestureDetector(
+          onTap: () => _onChannelTap(channel),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: focused ? const Color(0xFFE8C47A) : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
@@ -972,15 +1120,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             textAlign: TextAlign.center,
           ),
         ],
-      ),
+            ),
+          ),
+        );
+      }),
     );
   }
 
   Widget _buildSeriesCard(Channel channel) {
-    return InkWell(
-      onTap: () => _onChannelTap(channel),
-      borderRadius: BorderRadius.circular(6),
-      child: Column(
+    return FocusableActionDetector(
+      actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _onChannelTap(channel))},
+      child: Builder(builder: (ctx) {
+        final focused = Focus.of(ctx).hasFocus;
+        return GestureDetector(
+          onTap: () => _onChannelTap(channel),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: focused ? const Color(0xFFE8C47A) : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
@@ -1006,7 +1169,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           color: Colors.grey[850],
                           child: const Icon(Icons.tv, color: Colors.white24, size: 40),
                         ),
-                  // Play overlay
                   Center(
                     child: Container(
                       decoration: BoxDecoration(
@@ -1030,7 +1192,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             textAlign: TextAlign.center,
           ),
         ],
-      ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+}
+
+class _BreadcrumbArrow extends StatelessWidget {
+  const _BreadcrumbArrow();
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4),
+      child: Icon(Icons.chevron_right, color: Colors.white38, size: 16),
     );
   }
 }

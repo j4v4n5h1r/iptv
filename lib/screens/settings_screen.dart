@@ -34,10 +34,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ── Helpers ─────────────────────────────────────────────────────────────
   Widget _sectionHeader(String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
+        padding: const EdgeInsets.fromLTRB(4, 16, 0, 4),
         child: Text(title.toUpperCase(),
-            style: const TextStyle(
-                color: Colors.white38, fontSize: 11, letterSpacing: 1.2)),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.35),
+                fontSize: 10,
+                letterSpacing: 2.0,
+                fontWeight: FontWeight.w600)),
       );
 
   Widget _settingsTile({
@@ -64,38 +67,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
         listenable: focusNode,
         builder: (context, _) {
           final focused = focusNode.hasFocus;
-          return InkWell(
+          // Display value: subtitle if present, otherwise title
+          final displayLabel = subtitle ?? title;
+          final showTitle = subtitle != null;
+          return GestureDetector(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(10),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 100),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              margin: const EdgeInsets.only(bottom: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: focused ? const Color(0xFF60A5FA) : Colors.white12, width: 1.5),
+                borderRadius: BorderRadius.circular(8),
+                border: focused
+                    ? Border.all(color: Colors.white.withValues(alpha: 0.9), width: 2)
+                    : Border.all(color: Colors.white.withValues(alpha: 0.28), width: 1),
+                image: DecorationImage(
+                  image: const AssetImage('assets/wood-tile-warm.png'),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.matrix(focused
+                      ? [0.85,0,0,0,0, 0,0.85,0,0,0, 0,0,0.85,0,0, 0,0,0,1,0]
+                      : [0.55,0,0,0,0, 0,0.55,0,0,0, 0,0,0.55,0,0, 0,0,0,1,0]),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(icon, color: focused ? const Color(0xFF60A5FA) : Colors.white70, size: 22),
-                  const SizedBox(width: 14),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title,
+                    child: showTitle
+                        ? Row(
+                            children: [
+                              Text('$title  ',
+                                  style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.55),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w400)),
+                              Text(displayLabel,
+                                  style: TextStyle(
+                                      color: focused ? Colors.white : Colors.white.withValues(alpha: 0.90),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          )
+                        : Text(displayLabel,
                             style: TextStyle(
-                                color: focused ? Colors.white : Colors.white,
-                                fontSize: 14)),
-                        if (subtitle != null)
-                          Text(subtitle,
-                              style: const TextStyle(
-                                  color: Colors.white38, fontSize: 12)),
-                      ],
-                    ),
+                                color: focused ? Colors.white : Colors.white.withValues(alpha: 0.90),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600)),
                   ),
-                  if (trailing != null) trailing,
+                  if (trailing is Switch)
+                    trailing
+                  else
+                    Icon(Icons.arrow_forward_ios,
+                        color: Colors.white.withValues(alpha: focused ? 1.0 : 0.50),
+                        size: 15),
                 ],
               ),
             ),
@@ -157,7 +180,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
+        backgroundColor: const Color(0xFF2C1A06),
         title: const Text('Clear Watch History',
             style: TextStyle(color: Colors.white)),
         content: const Text('Are you sure? This will remove all recently watched channels.',
@@ -194,7 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
+        backgroundColor: const Color(0xFF2C1A06),
         title: Text('Update Available  v${info.version}',
             style: const TextStyle(color: Colors.white)),
         content: Text(
@@ -209,7 +232,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Later', style: TextStyle(color: Colors.white54))),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK', style: TextStyle(color: const Color(0xFF60A5FA)))),
+            child: const Text('OK', style: TextStyle(color: const Color(0xFFD4A857)))),
         ],
       ),
     );
@@ -229,16 +252,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
           },
           child: Scaffold(
+            backgroundColor: Colors.black,
             appBar: AppBar(
+              backgroundColor: const Color(0xFF1A0D00),
+              elevation: 0,
               title: Text(l10n.get('settings'),
-                  style: const TextStyle(color: Colors.white)),
+                  style: const TextStyle(color: Color(0xFFF5E6D0))),
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(Icons.arrow_back, color: Color(0xFFF5E6D0)),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
-            body: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            body: Stack(
+              children: [
+                Positioned.fill(child: Image.asset('assets/wood-bg-dark.jpg', fit: BoxFit.cover)),
+                Container(color: Colors.black.withValues(alpha: 0.55)),
+                ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               children: [
                 // ── Language ──────────────────────────────────────────────
                 _sectionHeader(l10n.get('settings_language')),
@@ -247,33 +277,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: l10n.get('settings_language'),
                   subtitle: _languageLabel(settings.language),
                   onTap: () => _showLanguagePicker(settings),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.white24),
                 ),
 
                 // ── Playback ──────────────────────────────────────────────
                 _sectionHeader(l10n.get('settings_stream')),
-
-                // Stream mode
                 _settingsTile(
                   icon: Icons.stream,
                   title: l10n.get('settings_stream_mode'),
                   subtitle: _streamModeLabel(settings.streamMode, l10n),
                   onTap: () => _showStreamModePicker(settings, l10n),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.white24),
                 ),
-                const SizedBox(height: 8),
-
-                // Buffer
                 _settingsTile(
                   icon: Icons.hourglass_bottom,
                   title: l10n.get('settings_buffer'),
                   subtitle: '${settings.bufferSeconds}s',
                   onTap: () => _showBufferPicker(settings),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.white24),
                 ),
-                const SizedBox(height: 8),
-
-                // HW decode
                 _settingsTile(
                   icon: Icons.memory,
                   title: l10n.get('settings_hw_decode'),
@@ -312,14 +331,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 if (settings.parentalEnabled) ...[
-                  const SizedBox(height: 8),
                   _settingsTile(
                     icon: Icons.pin,
                     title: l10n.get('settings_parental_pin'),
                     onTap: () => _setupParentalPin(settings),
-                    trailing: const Icon(Icons.chevron_right, color: Colors.white24),
                   ),
-                  const SizedBox(height: 8),
                   _settingsTile(
                     icon: Icons.lock,
                     title: l10n.get('settings_parental_lock_cats'),
@@ -328,7 +344,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const ParentalLockScreen()),
                     ),
-                    trailing: const Icon(Icons.chevron_right, color: Colors.white24),
                   ),
                 ],
 
@@ -339,7 +354,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: l10n.get('settings_clear_history'),
                   subtitle: l10n.get('settings_clear_history_sub'),
                   onTap: _clearHistory,
-                  trailing: const Icon(Icons.chevron_right, color: Colors.white24),
                 ),
 
                 // ── Update ────────────────────────────────────────────────
@@ -349,7 +363,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Check for Updates',
                   subtitle: 'Current version: v1.0.0',
                   onTap: () => _checkForUpdate(context),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.white24),
                 ),
 
                 // ── Version ───────────────────────────────────────────────
@@ -363,6 +376,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ]),
                 ),
                 const SizedBox(height: 20),
+              ],
+            ),
               ],
             ),
           ),
@@ -387,7 +402,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
+        backgroundColor: const Color(0xFF2C1A06),
         title: const Text('Language', style: TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
           child: Column(
@@ -421,14 +436,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF60A5FA).withValues(alpha: 0.2) : Colors.transparent,
+          color: selected ? const Color(0xFFD4A857).withValues(alpha: 0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? const Color(0xFF60A5FA) : Colors.white12),
+          border: Border.all(color: selected ? const Color(0xFFD4A857) : Colors.white12),
         ),
         child: Row(
           children: [
             Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15))),
-            if (selected) const Icon(Icons.check, color: Color(0xFF60A5FA), size: 18),
+            if (selected) const Icon(Icons.check, color: const Color(0xFFD4A857), size: 18),
           ],
         ),
       ),
@@ -440,7 +455,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
+        backgroundColor: const Color(0xFF2C1A06),
         title: Text(l10n.get('settings_stream_mode'),
             style: const TextStyle(color: Colors.white)),
         content: Column(
@@ -456,11 +471,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: Text(_streamModeLabel(m, l10n),
                           style: TextStyle(
-                            color: selected ? const Color(0xFF60A5FA) : Colors.white,
+                            color: selected ? const Color(0xFFD4A857) : Colors.white,
                             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                           )),
                     ),
-                    if (selected) const Icon(Icons.check, color: Color(0xFF60A5FA), size: 18),
+                    if (selected) const Icon(Icons.check, color: const Color(0xFFD4A857), size: 18),
                   ],
                 ),
               ),
@@ -476,7 +491,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
+        backgroundColor: const Color(0xFF2C1A06),
         title: const Text('Buffer Size', style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -491,11 +506,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: Text('$v seconds',
                           style: TextStyle(
-                            color: selected ? const Color(0xFF60A5FA) : Colors.white,
+                            color: selected ? const Color(0xFFD4A857) : Colors.white,
                             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                           )),
                     ),
-                    if (selected) const Icon(Icons.check, color: Color(0xFF60A5FA), size: 18),
+                    if (selected) const Icon(Icons.check, color: const Color(0xFFD4A857), size: 18),
                   ],
                 ),
               ),
@@ -591,7 +606,7 @@ class _PinPadDialogState extends State<_PinPadDialog> {
   Widget build(BuildContext context) {
     final dots = List.generate(4, (i) => i < _pin.length ? '●' : '○').join('  ');
     return Dialog(
-      backgroundColor: const Color(0xFF1A242D),
+      backgroundColor: const Color(0xFF1A0D00),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -600,7 +615,7 @@ class _PinPadDialogState extends State<_PinPadDialog> {
           children: [
             Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            Text(dots, style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 28, letterSpacing: 8)),
+            Text(dots, style: const TextStyle(color: const Color(0xFFD4A857), fontSize: 28, letterSpacing: 8)),
             const SizedBox(height: 20),
             // 3x4 grid
             SizedBox(
@@ -628,13 +643,13 @@ class _PinPadDialogState extends State<_PinPadDialog> {
                             duration: const Duration(milliseconds: 100),
                             decoration: BoxDecoration(
                               color: focused
-                                  ? const Color(0xFF60A5FA)
+                                  ? const Color(0xFFD4A857)
                                   : isAction
-                                      ? const Color(0xFF25313D)
-                                      : const Color(0xFF0B1118),
+                                      ? const Color(0xFF2C1A06)
+                                      : const Color(0xFF1A0D00),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: focused ? Colors.white : const Color(0xFF2A3542),
+                                color: focused ? Colors.white : const Color(0xFF3D2008),
                                 width: focused ? 2 : 1,
                               ),
                             ),
@@ -642,7 +657,7 @@ class _PinPadDialogState extends State<_PinPadDialog> {
                               child: Text(
                                 label,
                                 style: TextStyle(
-                                  color: focused ? Colors.white : (isAction ? const Color(0xFF60A5FA) : Colors.white),
+                                  color: focused ? Colors.white : (isAction ? const Color(0xFFD4A857) : Colors.white),
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                 ),
