@@ -46,11 +46,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   double _scrubValue = 0.0;
 
   // Player pozisyonu state'de tutulur — StreamBuilder rebuild race condition'ını önler
+  bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration>? _durationSub;
   StreamSubscription<bool>? _bufferingSub;
+  StreamSubscription<bool>? _playingSub;
 
   Timer? _hideControlsTimer;
   Timer? _osdTimer;
@@ -87,6 +89,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
     );
 
+    _isPlaying = _player.state.playing;
+    _playingSub = _player.stream.playing.listen((playing) {
+      if (mounted && playing != _isPlaying) setState(() => _isPlaying = playing);
+    });
+
     _bufferingSub = _player.stream.buffering.listen((buffering) {
       if (mounted && buffering != _isBuffering) setState(() => _isBuffering = buffering);
     });
@@ -107,7 +114,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _resetHideTimer();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
       _playerFocusNode.requestFocus();
     });
   }
@@ -267,6 +273,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void dispose() {
     _hideControlsTimer?.cancel();
     _osdTimer?.cancel();
+    _playingSub?.cancel();
     _bufferingSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();
@@ -421,31 +428,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
           // Center play/pause controls
           Center(
-            child: StreamBuilder<bool>(
-              stream: _player.stream.playing,
-              initialData: _player.state.playing,
-              builder: (context, snapshot) {
-                final isPlaying = snapshot.data ?? false;
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildControlBtn(Icons.fast_rewind, () {
-                      _player.seek(_player.state.position - const Duration(seconds: 10));
-                    }, focusNode: _rewindFocus),
-                    const SizedBox(width: 24),
-                    _buildControlBtn(
-                      isPlaying ? Icons.pause_circle : Icons.play_circle,
-                      _player.playOrPause,
-                      size: 72,
-                      focusNode: _playFocus,
-                    ),
-                    const SizedBox(width: 24),
-                    _buildControlBtn(Icons.fast_forward, () {
-                      _player.seek(_player.state.position + const Duration(seconds: 10));
-                    }, focusNode: _fwdFocus),
-                  ],
-                );
-              },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildControlBtn(Icons.fast_rewind, () {
+                  _player.seek(_player.state.position - const Duration(seconds: 10));
+                }, focusNode: _rewindFocus),
+                const SizedBox(width: 24),
+                _buildControlBtn(
+                  _isPlaying ? Icons.pause_circle : Icons.play_circle,
+                  _player.playOrPause,
+                  size: 72,
+                  focusNode: _playFocus,
+                ),
+                const SizedBox(width: 24),
+                _buildControlBtn(Icons.fast_forward, () {
+                  _player.seek(_player.state.position + const Duration(seconds: 10));
+                }, focusNode: _fwdFocus),
+              ],
             ),
           ),
 

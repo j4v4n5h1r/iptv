@@ -163,8 +163,7 @@ class _ChannelListOverlayState extends State<ChannelListOverlay> {
                 final isFocused = _focusedIndex == index;
                 return GestureDetector(
                   onTap: () => widget.onChannelSelected(channel),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
+                  child: Container(
                     height: 56,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
@@ -191,7 +190,7 @@ class _ChannelListOverlayState extends State<ChannelListOverlay> {
                             channel.name,
                             style: TextStyle(
                               color: isFocused ? Colors.white : Colors.white70,
-                              fontSize: isFocused ? 15 : 14,
+                              fontSize: 14,
                               fontWeight: isFocused ? FontWeight.bold : FontWeight.normal,
                             ),
                             maxLines: 1,

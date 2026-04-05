@@ -353,7 +353,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
     if (channel.url.isEmpty) return;
     _addToWatchlist(channel);
-    final list = _tabIndex == 2 ? _currentChannels : _currentChannels;
+    // Film/series için channel list overlay gereksiz — boş liste geç, bellek tasarrufu
+    final list = channel.isMovie ? <Channel>[] : _currentChannels;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -630,10 +631,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _buildCategoryPage(String sectionTitle, AppL10n l10n) {
     final cats = _currentCategories;
     return Scaffold(
-      backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFF0B1118),
       appBar: AppBar(
-        backgroundColor: Colors.black.withValues(alpha: 0.50),
+        backgroundColor: const Color(0xFF0B1118),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white70),
@@ -642,32 +642,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         title: Text(sectionTitle,
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(child: Image.asset('assets/wood-bg-dark.jpg', fit: BoxFit.cover)),
-          Container(color: Colors.black.withValues(alpha: 0.45)),
-          _loadingCategories
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFFF5E6D0)))
-              : SafeArea(
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(20),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      childAspectRatio: 2.8,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
-                    itemCount: cats.length + 1,
-                    itemBuilder: (ctx, i) {
-                      final isAll = i == 0;
-                      final name = isAll ? 'All' : cats[i - 1].name;
-                      final id = isAll ? null : cats[i - 1].id;
-                      return _buildCategoryGridItem(name, id);
-                    },
-                  ),
+      body: _loadingCategories
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFF5E6D0)))
+          : SafeArea(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(20),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  childAspectRatio: 2.8,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
                 ),
-        ],
-      ),
+                itemCount: cats.length + 1,
+                itemBuilder: (ctx, i) {
+                  final isAll = i == 0;
+                  final name = isAll ? 'All' : cats[i - 1].name;
+                  final id = isAll ? null : cats[i - 1].id;
+                      return _buildCategoryGridItem(name, id);
+                },
+              ),
+            ),
     );
   }
 
@@ -678,41 +672,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         final focused = Focus.of(ctx).hasFocus;
         return GestureDetector(
           onTap: () => _onCategoryTap(id),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+          child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              color: focused ? const Color(0xFF6B3E12) : const Color(0xFF3D2008),
+              color: focused ? const Color(0xFF2A2A3A) : const Color(0xFF1A1A28),
               border: Border.all(
-                color: focused ? const Color(0xFFE8C47A) : Colors.white.withValues(alpha: 0.18),
+                color: focused ? const Color(0xFFE8C47A) : Colors.white24,
                 width: focused ? 2.5 : 1,
               ),
-              boxShadow: focused
-                  ? [BoxShadow(color: const Color(0xFFE8C47A).withValues(alpha: 0.5), blurRadius: 12, spreadRadius: 1)]
-                  : [],
             ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      name,
-                      style: TextStyle(
-                        color: focused ? Colors.white : const Color(0xFFF5E6D0),
-                        fontSize: focused ? 13 : 12,
-                        fontWeight: focused ? FontWeight.bold : FontWeight.w600,
-                        letterSpacing: 0.3,
-                        shadows: const [Shadow(color: Colors.black, blurRadius: 6)],
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    color: focused ? Colors.white : Colors.white70,
+                    fontSize: 13,
+                    fontWeight: focused ? FontWeight.bold : FontWeight.w500,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -732,10 +715,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFF0B1118),
       appBar: AppBar(
-        backgroundColor: Colors.black.withValues(alpha: 0.55),
+        backgroundColor: const Color(0xFF0B1118),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white70),
@@ -765,32 +747,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(child: Image.asset('assets/wood-bg-dark.jpg', fit: BoxFit.cover)),
-          Container(color: Colors.black.withValues(alpha: 0.60)),
-          SafeArea(
-            child: Shortcuts(
-              shortcuts: {
-                LogicalKeySet(LogicalKeyboardKey.arrowDown):  const DirectionalFocusIntent(TraversalDirection.down),
-                LogicalKeySet(LogicalKeyboardKey.arrowUp):    const DirectionalFocusIntent(TraversalDirection.up),
-                LogicalKeySet(LogicalKeyboardKey.arrowLeft):  const DirectionalFocusIntent(TraversalDirection.left),
-                LogicalKeySet(LogicalKeyboardKey.arrowRight): const DirectionalFocusIntent(TraversalDirection.right),
-                LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
-                LogicalKeySet(LogicalKeyboardKey.enter):  const ActivateIntent(),
-              },
-              child: _loadingChannels
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFF5E6D0)))
-                  : NotificationListener<ScrollEndNotification>(
-                      onNotification: (_) {
-                        if (_tabIndex == 0) _loadEpgForVisible();
-                        return false;
-                      },
-                      child: _buildChannelGrid(_currentChannels),
-                    ),
-            ),
-          ),
-        ],
+      body: SafeArea(
+        child: Shortcuts(
+          shortcuts: {
+            LogicalKeySet(LogicalKeyboardKey.arrowDown):  const DirectionalFocusIntent(TraversalDirection.down),
+            LogicalKeySet(LogicalKeyboardKey.arrowUp):    const DirectionalFocusIntent(TraversalDirection.up),
+            LogicalKeySet(LogicalKeyboardKey.arrowLeft):  const DirectionalFocusIntent(TraversalDirection.left),
+            LogicalKeySet(LogicalKeyboardKey.arrowRight): const DirectionalFocusIntent(TraversalDirection.right),
+            LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
+            LogicalKeySet(LogicalKeyboardKey.enter):  const ActivateIntent(),
+          },
+          child: _loadingChannels
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFF5E6D0)))
+              : NotificationListener<ScrollEndNotification>(
+                  onNotification: (_) {
+                    if (_tabIndex == 0) _loadEpgForVisible();
+                    return false;
+                  },
+                  child: _buildChannelGrid(_currentChannels),
+                ),
+        ),
       ),
     );
   }
@@ -866,6 +842,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       policy: ReadingOrderTraversalPolicy(),
       child: GridView.builder(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: false,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: isLive ? 4 : 6,
           childAspectRatio: isLive ? 2.2 : 0.65,
