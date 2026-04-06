@@ -186,7 +186,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
                         children: [
                           Icon(Icons.tv, color: Color(0xFFF5E6D0), size: 22),
                           SizedBox(width: 10),
-                          Text('VIEWNAX',
+                          Text('VIEWNUX',
                             style: TextStyle(
                               color: Color(0xFFF5E6D0),
                               fontWeight: FontWeight.bold,

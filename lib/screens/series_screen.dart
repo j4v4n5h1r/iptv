@@ -92,18 +92,13 @@ class _SeriesScreenState extends State<SeriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.black.withValues(alpha: 0.55),
+        backgroundColor: const Color(0xFF0B1118),
         elevation: 0,
         title: Text(widget.series.name, style: const TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(child: Image.asset('assets/wood-bg-dark.jpg', fit: BoxFit.cover)),
-          Container(color: Colors.black.withValues(alpha: 0.55)),
-          Shortcuts(
+      body: Shortcuts(
         shortcuts: {
           LogicalKeySet(LogicalKeyboardKey.arrowDown): const NextFocusIntent(),
           LogicalKeySet(LogicalKeyboardKey.arrowUp): const PreviousFocusIntent(),
@@ -115,8 +110,6 @@ class _SeriesScreenState extends State<SeriesScreen> {
             : _error != null
                 ? Center(child: Text(_error!, style: const TextStyle(color: Colors.white54)))
                 : _buildContent(),
-      ),
-        ],
       ),
     );
   }

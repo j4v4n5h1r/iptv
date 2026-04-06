@@ -109,7 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             Container(color: Colors.black.withValues(alpha: 0.40)),
 
-            // ── VIEWNAX logo top-center ───────────────────────────────
+            // ── VIEWNUX logo top-center ───────────────────────────────
             Positioned(
               top: 24, left: 0, right: 0,
               child: Center(
@@ -136,7 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             Icon(Icons.tv, color: Color(0xFFF5E6D0), size: 22),
                             SizedBox(width: 10),
-                            Text('VIEWNAX',
+                            Text('VIEWNUX',
                               style: TextStyle(
                                 color: Color(0xFFF5E6D0),
                                 fontWeight: FontWeight.bold,

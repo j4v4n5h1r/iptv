@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.get('/login', (req, res) => {
   if (req.session.adminId) return res.redirect('/dashboard');
-  res.render('login', { title: 'Login' });
+  res.render('login', { title: 'Login', layout: false });
 });
 
 router.post('/login', (req, res) => {

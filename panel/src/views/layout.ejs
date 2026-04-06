@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="dark">
-  <title><%= typeof title !== 'undefined' ? title : 'ViewNax' %> — ViewNax Panel</title>
+  <title><%= typeof title !== 'undefined' ? title : 'ViewNux' %> — ViewNux Panel</title>
   <!-- Critical: dark bg + full-screen loader before ANY external file loads -->
   <style>
     html,body{background:#0e001a!important;margin:0;padding:0}
@@ -36,13 +36,14 @@
 
 <div class="wrapper">
 
+  <% if (locals.admin) { %>
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <div class="brand-logo">
         <div class="brand-icon"><i class="fa fa-tv"></i></div>
         <div>
-          <div class="brand-name">ViewNax Panel</div>
+          <div class="brand-name">ViewNux Panel</div>
         </div>
       </div>
       <div class="brand-sub">Management System</div>
@@ -101,6 +102,7 @@
       <span>online &nbsp;·&nbsp; v1.0.0</span>
     </div>
   </aside>
+  <% } %>
 
   <!-- MAIN -->
   <div class="main-content">
@@ -114,7 +116,7 @@
       </div>
       <div class="topbar-right">
         <div class="topbar-user">logged in as <b><%= typeof admin !== 'undefined' ? admin : '' %></b></div>
-        <a href="/logout" class="btn-logout"><i class="fa fa-right-from-bracket"></i> Logout</a>
+        <a href="/logout" class="btn-logout" data-hard-nav="1"><i class="fa fa-right-from-bracket"></i> Logout</a>
       </div>
     </nav>
 
@@ -321,7 +323,7 @@
     var a = e.target.closest('a[href]');
     if (!a || a.closest('form')) return;
     var href = a.getAttribute('href') || '';
-    if (!href || href === '#' || href.startsWith('javascript') || href.startsWith('mailto') || a.target === '_blank') return;
+    if (!href || href === '#' || href.startsWith('javascript') || href.startsWith('mailto') || a.target === '_blank' || a.dataset.hardNav) return;
     try {
       var u = new URL(href, location.href);
       if (u.origin !== location.origin) return;
