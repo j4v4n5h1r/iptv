@@ -152,7 +152,7 @@ class BackendService {
           .post(
             Uri.parse('$kBackendUrl/api/device/register'),
             headers: _headers,
-            body: jsonEncode({'mac_address': deviceId}),
+            body: jsonEncode({'app_key': deviceId}),
           )
           .timeout(_timeout);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -181,7 +181,7 @@ class BackendService {
           .post(
             Uri.parse('$kBackendUrl/api/activate'),
             headers: _headers,
-            body: jsonEncode({'mac_address': deviceId, 'code': code}),
+            body: jsonEncode({'app_key': deviceId, 'code': code}),
           )
           .timeout(_timeout);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -199,7 +199,7 @@ class BackendService {
           .post(
             Uri.parse('$kBackendUrl/api/auth'),
             headers: _headers,
-            body: jsonEncode({'mac_address': deviceId}),
+            body: jsonEncode({'app_key': deviceId}),
           )
           .timeout(_timeout);
       final body = jsonDecode(res.body) as Map<String, dynamic>;

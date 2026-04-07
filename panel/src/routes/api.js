@@ -16,40 +16,33 @@ function apiError(res, status, message) {
 }
 
 // ─── POST /api/auth ────────────────────────────────────────────────────────────
-// Flutter app sends the device MAC address; backend returns stream credentials.
+// Flutter app sends app_key; backend returns stream credentials.
 router.post('/auth', (req, res) => {
-  const { mac_address } = req.body;
-  if (!mac_address) return apiError(res, 400, 'mac_address is required');
+  const { app_key } = req.body;
+  if (!app_key) return apiError(res, 400, 'app_key is required');
 
-  const mac = mac_address.trim().toUpperCase();
+  const key = app_key.trim().toUpperCase();
 
-  // Check if MAC is registered
   const user = db.prepare(`
     SELECT mu.*, s.url AS server_url, s.title AS server_title
     FROM mac_users mu
     LEFT JOIN servers s ON mu.server_id = s.id
-    WHERE mu.mac_address = ?
-  `).get(mac);
+    WHERE mu.app_key = ?
+  `).get(key);
 
   if (!user) {
-    return apiError(res, 404, 'MAC address not registered. Please use an activation code.');
+    return apiError(res, 404, 'App Key not registered. Please use an activation code.');
   }
 
-  // Check trial expiry
-  const trial = db.prepare('SELECT * FROM trials WHERE mac_address = ?').get(mac);
+  const trial = db.prepare('SELECT * FROM trials WHERE app_key = ?').get(key);
   const today = new Date().toISOString().split('T')[0];
   if (trial && trial.expire_date < today) {
     return apiError(res, 403, 'Your subscription has expired. Please contact support.');
   }
 
-  // Get app config
   const notification = {
     title: getSetting('notification_title'),
     content: getSetting('notification_content'),
-  };
-  const loginText = {
-    title: getSetting('login_title'),
-    subtitle: getSetting('login_subtitle'),
   };
 
   return res.json({
@@ -66,18 +59,18 @@ router.post('/auth', (req, res) => {
     },
     trial: trial ? { expire_date: trial.expire_date } : null,
     notification,
-    login_text: loginText,
   });
 });
 
 // ─── POST /api/activate ────────────────────────────────────────────────────────
-// Activate a device using an activation code + MAC address.
+// Activate a device using an activation code + app_key.
 router.post('/activate', (req, res) => {
-  const { mac_address, code } = req.body;
-  if (!mac_address || !code) return apiError(res, 400, 'mac_address and code are required');
+  const { app_key, code } = req.body;
+  if (!app_key || !code) return apiError(res, 400, 'app_key and code are required');
 
-  const mac = mac_address.trim().toUpperCase();
+  const key = app_key.trim().toUpperCase();
   const normalizedCode = code.trim().toUpperCase().replace(/-/g, '');
+
   const activationCode = db.prepare(
     "SELECT * FROM activation_codes WHERE REPLACE(code, '-', '') = ?"
   ).get(normalizedCode);
@@ -86,10 +79,10 @@ router.post('/activate', (req, res) => {
     return apiError(res, 400, 'Invalid activation code.');
   }
 
-  // Check device limit — same MAC can re-activate unlimited times
+  // Check if this app_key already used this code
   const alreadyRegistered = db.prepare(
-    'SELECT id FROM code_devices WHERE code_id = ? AND mac_address = ?'
-  ).get(activationCode.id, mac);
+    'SELECT id FROM code_devices WHERE code_id = ? AND app_key = ?'
+  ).get(activationCode.id, key);
 
   if (!alreadyRegistered) {
     const deviceCount = db.prepare(
@@ -101,39 +94,53 @@ router.post('/activate', (req, res) => {
       return apiError(res, 403, `Device limit reached. This code allows max ${limit} devices.`);
     }
 
-    // Register this new device
-    db.prepare('INSERT INTO code_devices (code_id, mac_address) VALUES (?, ?)')
-      .run(activationCode.id, mac);
+    db.prepare('INSERT INTO code_devices (code_id, app_key) VALUES (?, ?)')
+      .run(activationCode.id, key);
   }
 
-  // Mark code as used and track last device
+  // Track last used app_key on code
   db.prepare("UPDATE activation_codes SET status='used', used_by=? WHERE id=?")
-    .run(mac, activationCode.id);
+    .run(key, activationCode.id);
 
-  // If activation code is linked to a specific mac_user, bind this MAC to that user
+  // If code is linked to a specific mac_user, bind this app_key to that user
   let linkedUser = null;
   if (activationCode.mac_user_id) {
     linkedUser = db.prepare('SELECT * FROM mac_users WHERE id = ?').get(activationCode.mac_user_id);
     if (linkedUser) {
-      db.prepare('UPDATE mac_users SET mac_address = ? WHERE id = ?')
-        .run(mac, linkedUser.id);
+      db.prepare('UPDATE mac_users SET app_key = ? WHERE id = ?')
+        .run(key, linkedUser.id);
     }
   }
 
-  // If no linked user, create or update mac_users entry
+  // If no linked user, auto-create a mac_users entry for this app_key
   if (!linkedUser) {
-    const existing = db.prepare('SELECT id FROM mac_users WHERE mac_address = ?').get(mac);
+    const existing = db.prepare('SELECT id FROM mac_users WHERE app_key = ?').get(key);
     if (!existing) {
       db.prepare(`
-        INSERT INTO mac_users (title, mac_address, username, password, protection, m3u_address, server_id)
-        VALUES (?, ?, ?, ?, 'NO', ?, ?)
-      `).run(mac, mac, '', '', null, activationCode.server_id || null);
+        INSERT INTO mac_users (title, app_key, username, password, protection, m3u_address, server_id)
+        VALUES (?, ?, '', '', 'NO', NULL, ?)
+      `).run(key, key, activationCode.server_id || null);
     }
   }
 
-  return res.json({
+  return res.json({ success: true, message: 'Activated successfully.' });
+});
+
+// ─── POST /api/device/register ─────────────────────────────────────────────────
+router.post('/device/register', (req, res) => {
+  const { app_key } = req.body;
+  if (!app_key) return apiError(res, 400, 'app_key is required');
+
+  const key = app_key.trim().toUpperCase();
+  const user = db.prepare('SELECT id FROM mac_users WHERE app_key = ?').get(key);
+  const trial = db.prepare('SELECT * FROM trials WHERE app_key = ?').get(key);
+  const today = new Date().toISOString().split('T')[0];
+
+  res.json({
     success: true,
-    message: 'Activated successfully.',
+    registered: !!user,
+    trial_active: trial ? trial.expire_date >= today : false,
+    trial_expire: trial ? trial.expire_date : null,
   });
 });
 
@@ -161,28 +168,25 @@ router.get('/update', (req, res) => {
 });
 
 // ─── GET /api/demo ─────────────────────────────────────────────────────────────
-// Returns demo playlist credentials for unregistered users.
 router.get('/demo', (req, res) => {
-  const playlist_name = getSetting('demo_playlist_name');
   const dns = getSetting('demo_dns');
-  const username = getSetting('demo_username');
-  const password = getSetting('demo_password');
-
   if (!dns) return apiError(res, 404, 'No demo configured.');
-
   res.json({
     success: true,
-    demo: { playlist_name, dns, username, password },
+    demo: {
+      playlist_name: getSetting('demo_playlist_name'),
+      dns,
+      username: getSetting('demo_username'),
+      password: getSetting('demo_password'),
+    },
   });
 });
 
 // ─── GET /api/settings ─────────────────────────────────────────────────────────
-// Returns all public app settings in one call.
 router.get('/settings', (req, res) => {
   res.json({
     success: true,
     settings: {
-      mac_length: getSetting('mac_length') || '12',
       login_title: getSetting('login_title'),
       login_subtitle: getSetting('login_subtitle'),
       notification: {
@@ -194,25 +198,6 @@ router.get('/settings', (req, res) => {
         url: getSetting('update_url'),
       },
     },
-  });
-});
-
-// ─── POST /api/device/register ─────────────────────────────────────────────────
-// Register or update a device MAC address (used on first launch).
-router.post('/device/register', (req, res) => {
-  const { mac_address } = req.body;
-  if (!mac_address) return apiError(res, 400, 'mac_address is required');
-
-  const mac = mac_address.trim().toUpperCase();
-  const user = db.prepare('SELECT id FROM mac_users WHERE mac_address = ?').get(mac);
-  const trial = db.prepare('SELECT * FROM trials WHERE mac_address = ?').get(mac);
-  const today = new Date().toISOString().split('T')[0];
-
-  res.json({
-    success: true,
-    registered: !!user,
-    trial_active: trial ? trial.expire_date >= today : false,
-    trial_expire: trial ? trial.expire_date : null,
   });
 });
 

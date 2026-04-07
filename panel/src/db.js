@@ -36,7 +36,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS mac_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
-    mac_address TEXT NOT NULL UNIQUE,
+    app_key TEXT NOT NULL UNIQUE,
     username TEXT NOT NULL,
     password TEXT NOT NULL,
     protection TEXT NOT NULL DEFAULT 'NO',
@@ -59,14 +59,14 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS code_devices (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     code_id INTEGER NOT NULL REFERENCES activation_codes(id) ON DELETE CASCADE,
-    mac_address TEXT NOT NULL,
+    app_key TEXT NOT NULL,
     activated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(code_id, mac_address)
+    UNIQUE(code_id, app_key)
   );
 
   CREATE TABLE IF NOT EXISTS trials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    mac_address TEXT NOT NULL UNIQUE,
+    app_key TEXT NOT NULL UNIQUE,
     expire_date TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -108,5 +108,28 @@ const insertSetting = db.prepare(
 for (const [key, value] of Object.entries(defaultSettings)) {
   insertSetting.run(key, value);
 }
+
+// ─── Migrations ────────────────────────────────────────────────────────────────
+// mac_address → app_key rename (run once, safe to re-run)
+try {
+  const cols = db.prepare("PRAGMA table_info(mac_users)").all().map(c => c.name);
+  if (cols.includes('mac_address') && !cols.includes('app_key')) {
+    db.exec(`ALTER TABLE mac_users RENAME COLUMN mac_address TO app_key`);
+  }
+} catch (_) {}
+
+try {
+  const cols = db.prepare("PRAGMA table_info(trials)").all().map(c => c.name);
+  if (cols.includes('mac_address') && !cols.includes('app_key')) {
+    db.exec(`ALTER TABLE trials RENAME COLUMN mac_address TO app_key`);
+  }
+} catch (_) {}
+
+try {
+  const cols = db.prepare("PRAGMA table_info(code_devices)").all().map(c => c.name);
+  if (cols.includes('mac_address') && !cols.includes('app_key')) {
+    db.exec(`ALTER TABLE code_devices RENAME COLUMN mac_address TO app_key`);
+  }
+} catch (_) {}
 
 module.exports = db;

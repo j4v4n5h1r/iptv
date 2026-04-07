@@ -11,8 +11,8 @@ const _kCard = Color(0xFF2C1A06);
 const _kBlue = Color(0xFFD4A017);
 
 class ActivationScreen extends StatefulWidget {
-  final String deviceId;
-  const ActivationScreen({super.key, required this.deviceId});
+  final String appKey;
+  const ActivationScreen({super.key, required this.appKey});
 
   @override
   State<ActivationScreen> createState() => _ActivationScreenState();
@@ -51,7 +51,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
     }
     setState(() { _isLoading = true; _error = null; });
 
-    final err = await BackendService.activateDevice(widget.deviceId, _enteredCode);
+    final err = await BackendService.activateDevice(widget.appKey, _enteredCode);
     if (!mounted) return;
 
     if (err != null) {
@@ -59,7 +59,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
       return;
     }
 
-    final auth = await BackendService.authenticate(widget.deviceId);
+    final auth = await BackendService.authenticate(widget.appKey);
     if (!mounted) return;
     setState(() => _isLoading = false);
 
@@ -203,7 +203,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Device ID: ${widget.deviceId}',
+                'App Key: ${widget.appKey}',
                 style: const TextStyle(color: Colors.white38, fontSize: 11),
               ),
               const SizedBox(height: 32),

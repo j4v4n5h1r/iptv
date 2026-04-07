@@ -7,7 +7,7 @@
 
 <div class="card" style="max-width:640px;">
   <div class="card-header">
-    <span class="card-title">// <%= user ? 'Edit MAC User' : 'New MAC User' %></span>
+    <span class="card-title">// <%= user ? 'Edit App User' : 'New App User' %></span>
   </div>
   <div class="card-body">
     <form method="POST" action="<%= user ? '/mac-users/' + user.id : '/mac-users' %>">
@@ -33,15 +33,15 @@
           value="<%= user ? user.title : '' %>" required>
       </div>
 
-      <% if (user && user.mac_address) { %>
       <div class="form-group">
-        <label class="form-label"><span class="prompt">--</span> MAC Address <span style="color:var(--text-muted);font-size:13px;">(assigned by device)</span></label>
-        <input type="text" name="mac_address" class="form-control" value="<%= user.mac_address %>" readonly
-          style="opacity:0.6; cursor:default;">
+        <label class="form-label"><span class="prompt">--</span> App Key <span style="color:var(--text-muted);font-size:13px;">(shown on customer's device)</span></label>
+        <input type="text" name="app_key" class="form-control"
+          placeholder="e.g. VNUX-A3F7-K2P1"
+          value="<%= user ? user.app_key : '' %>"
+          style="font-family:monospace; letter-spacing:2px; text-transform:uppercase;"
+          <%= user ? '' : 'required' %>>
+        <div class="form-hint">Customer sends you this key from their device.</div>
       </div>
-      <% } else { %>
-      <input type="hidden" name="mac_address" value="PENDING">
-      <% } %>
 
       <input type="hidden" name="protection" value="NO">
 
@@ -93,9 +93,4 @@ function extractM3U() {
     alert('Could not parse URL. Please enter a valid M3U URL.');
   }
 }
-
-function onServerSelect(sel) {
-  if (sel.value) document.getElementById('field-server-url').value = sel.value;
-}
-
 </script>

@@ -14,7 +14,7 @@ router.get('/', (req, res) => {
       SELECT mu.*, s.title AS server_title, s.url AS server_url
       FROM mac_users mu
       LEFT JOIN servers s ON mu.server_id = s.id
-      WHERE mu.title LIKE ? OR mu.mac_address LIKE ? OR mu.username LIKE ?
+      WHERE mu.title LIKE ? OR mu.app_key LIKE ? OR mu.username LIKE ?
       ORDER BY mu.id DESC
     `).all(`%${search}%`, `%${search}%`, `%${search}%`);
   } else {
@@ -34,7 +34,7 @@ router.get('/', (req, res) => {
   const servers = db.prepare('SELECT * FROM servers ORDER BY title').all();
   const macUsers2 = db.prepare('SELECT * FROM mac_users ORDER BY title').all();
   res.render('mac-users/index', {
-    title: 'MAC Users', path: '/mac-users', users, search, codes, servers, macUsers: macUsers2,
+    title: 'App Users', path: '/mac-users', users, search, codes, servers, macUsers: macUsers2,
   });
 });
 
@@ -42,7 +42,7 @@ router.get('/', (req, res) => {
 router.get('/create', (req, res) => {
   const servers = db.prepare('SELECT * FROM servers ORDER BY title').all();
   res.render('mac-users/form', {
-    title: 'Add MAC User', path: '/mac-users', user: null, servers,
+    title: 'Add App User', path: '/mac-users', user: null, servers,
   });
 });
 
@@ -54,7 +54,6 @@ function resolveServerId(serverUrl) {
   }
   const existing = db.prepare('SELECT id FROM servers WHERE url = ?').get(url);
   if (existing) return existing.id;
-  // Auto-create server entry if URL is new
   const info = db.prepare('INSERT INTO servers (title, url, username, password) VALUES (?, ?, ?, ?)').run(
     url.replace(/^https?:\/\//, '').split('/')[0], url, '', ''
   );
@@ -63,31 +62,31 @@ function resolveServerId(serverUrl) {
 
 // Create submit
 router.post('/', (req, res) => {
-  const { title, mac_address, username, password, protection, m3u_address, server_url } = req.body;
-  if (!title || !username || !password) {
-    req.flash('error', 'Title, username and password are required.');
+  const { title, app_key, username, password, protection, m3u_address, server_url } = req.body;
+  if (!title || !app_key || !username || !password) {
+    req.flash('error', 'Title, App Key, username and password are required.');
     return res.redirect('/mac-users/create');
   }
   try {
     const sid = resolveServerId(server_url);
-    const mac = mac_address ? mac_address.trim().toUpperCase() : 'PENDING-' + Date.now();
+    const key = app_key.trim().toUpperCase();
     db.prepare(`
-      INSERT INTO mac_users (title, mac_address, username, password, protection, m3u_address, server_id)
+      INSERT INTO mac_users (title, app_key, username, password, protection, m3u_address, server_id)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
-      title.trim(), mac,
+      title.trim(), key,
       username.trim(), password.trim(),
       protection === 'YES' ? 'YES' : 'NO',
       m3u_address ? m3u_address.trim() : null,
       sid,
     );
-    req.flash('success', 'MAC user created successfully.');
+    req.flash('success', 'App user created successfully.');
     res.redirect('/mac-users');
   } catch (e) {
     if (e.message.includes('UNIQUE')) {
-      req.flash('error', 'MAC address already exists.');
+      req.flash('error', 'App Key already exists.');
     } else {
-      req.flash('error', 'Error creating user.');
+      req.flash('error', 'Error creating user: ' + e.message);
     }
     res.redirect('/mac-users/create');
   }
@@ -99,40 +98,40 @@ router.get('/:id/edit', (req, res) => {
   if (!user) { req.flash('error', 'User not found.'); return res.redirect('/mac-users'); }
   const servers = db.prepare('SELECT * FROM servers ORDER BY title').all();
   res.render('mac-users/form', {
-    title: 'Edit MAC User', path: '/mac-users', user, servers,
+    title: 'Edit App User', path: '/mac-users', user, servers,
   });
 });
 
 // Edit submit
 router.post('/:id', (req, res) => {
-  const { title, mac_address, username, password, protection, m3u_address, server_url } = req.body;
+  const { title, app_key, username, password, protection, m3u_address, server_url } = req.body;
   if (!title || !username || !password) {
     req.flash('error', 'Title, username and password are required.');
     return res.redirect(`/mac-users/${req.params.id}/edit`);
   }
   try {
     const sid = resolveServerId(server_url);
-    const existing = db.prepare('SELECT mac_address FROM mac_users WHERE id = ?').get(req.params.id);
-    const mac = (mac_address && !mac_address.startsWith('PENDING')) ? mac_address.trim().toUpperCase() : (existing ? existing.mac_address : 'PENDING-' + Date.now());
+    const existing = db.prepare('SELECT app_key FROM mac_users WHERE id = ?').get(req.params.id);
+    const key = (app_key && app_key.trim()) ? app_key.trim().toUpperCase() : (existing ? existing.app_key : 'PENDING-' + Date.now());
     db.prepare(`
       UPDATE mac_users
-      SET title=?, mac_address=?, username=?, password=?, protection=?, m3u_address=?, server_id=?
+      SET title=?, app_key=?, username=?, password=?, protection=?, m3u_address=?, server_id=?
       WHERE id=?
     `).run(
-      title.trim(), mac,
+      title.trim(), key,
       username.trim(), password.trim(),
       protection === 'YES' ? 'YES' : 'NO',
       m3u_address ? m3u_address.trim() : null,
       sid,
       req.params.id,
     );
-    req.flash('success', 'MAC user updated.');
+    req.flash('success', 'App user updated.');
     res.redirect('/mac-users');
   } catch (e) {
     if (e.message.includes('UNIQUE')) {
-      req.flash('error', 'MAC address already exists.');
+      req.flash('error', 'App Key already exists.');
     } else {
-      req.flash('error', 'Error updating user.');
+      req.flash('error', 'Error updating user: ' + e.message);
     }
     res.redirect(`/mac-users/${req.params.id}/edit`);
   }
@@ -141,7 +140,7 @@ router.post('/:id', (req, res) => {
 // Delete
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM mac_users WHERE id = ?').run(req.params.id);
-  req.flash('success', 'MAC user deleted.');
+  req.flash('success', 'App user deleted.');
   res.redirect('/mac-users');
 });
 

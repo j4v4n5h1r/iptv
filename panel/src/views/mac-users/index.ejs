@@ -1,5 +1,5 @@
 <div class="page-header">
-  <h1 class="page-title"><span class="prompt">$</span> mac-users</h1>
+  <h1 class="page-title"><span class="prompt">$</span> app-users</h1>
   <a href="/mac-users/create" class="btn btn-primary"><i class="fa fa-plus"></i> Add User</a>
 </div>
 
@@ -26,7 +26,7 @@
     <% if (users.length === 0) { %>
       <div class="empty-state">
         <span class="ei"><i class="fa fa-microchip"></i></span>
-        <p>No MAC users yet. <a href="/mac-users/create">Add your first user</a>.</p>
+        <p>No users yet. <a href="/mac-users/create">Add your first user</a>.</p>
       </div>
     <% } else { %>
       <div class="table-wrapper">
@@ -35,7 +35,7 @@
             <tr>
               <th>#</th>
               <th>Title</th>
-              <th>MAC Address</th>
+              <th>App Key</th>
               <th>Username</th>
               <th>Protected</th>
               <th>Server</th>
@@ -47,14 +47,14 @@
               <tr>
                 <td class="td-code"><%= i + 1 %></td>
                 <td><strong><%= u.title %></strong></td>
-                <td class="td-code" style="color:var(--green); letter-spacing:.5px"><%= u.mac_address %></td>
+                <td class="td-code" style="color:var(--green); letter-spacing:1.5px"><%= u.app_key %></td>
                 <td class="td-code"><%= u.username %></td>
                 <td><span class="badge badge-<%= u.protection.toLowerCase() %>"><%= u.protection %></span></td>
                 <td class="td-code" style="font-size:14px"><%= u.server_title || '—' %></td>
                 <td>
                   <a href="/mac-users/<%= u.id %>/edit" class="btn btn-outline btn-sm"><i class="fa fa-pen"></i> Edit</a>
                   &nbsp;
-                  <a href="/trials/create?mac=<%= encodeURIComponent(u.mac_address) %>" class="btn btn-green btn-sm"><i class="fa fa-calendar"></i> Trial</a>
+                  <a href="/trials/create?mac=<%= encodeURIComponent(u.app_key) %>" class="btn btn-green btn-sm"><i class="fa fa-calendar"></i> Trial</a>
                   &nbsp;
                   <button class="btn btn-danger btn-sm" onclick="confirmDelete('/mac-users/<%= u.id %>?_method=DELETE')">
                     <i class="fa fa-trash"></i>
@@ -77,11 +77,11 @@
   <div class="card-body">
     <form method="POST" action="/activation-codes" style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
       <div class="form-group" style="margin:0; flex:1; min-width:220px;">
-        <label class="form-label"><span class="prompt">--</span> MAC User</label>
+        <label class="form-label"><span class="prompt">--</span> App User</label>
         <select name="mac_user_id" class="form-control" id="macUserSelect" onchange="onMacUserChange(this)">
           <option value="">— No specific user —</option>
           <% macUsers.forEach(u => { %>
-            <option value="<%= u.id %>"><%= u.title %></option>
+            <option value="<%= u.id %>"><%= u.title %> (<%= u.app_key %>)</option>
           <% }) %>
         </select>
       </div>
@@ -115,7 +115,7 @@
               <th>#</th>
               <th>Activation Code</th>
               <th>Status</th>
-              <th>Used By (MAC)</th>
+              <th>Used By (App Key)</th>
               <th>Server</th>
               <th>Created</th>
               <th>Actions</th>

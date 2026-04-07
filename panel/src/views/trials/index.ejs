@@ -35,7 +35,7 @@
             <tr>
               <th>#</th>
               <th>Title</th>
-              <th>MAC Address</th>
+              <th>App Key</th>
               <th>Expire Date</th>
               <th>Status</th>
               <th>Actions</th>
@@ -47,7 +47,7 @@
               <tr>
                 <td class="td-code"><%= i + 1 %></td>
                 <td><strong><%= t.user_title || '—' %></strong></td>
-                <td class="td-code" style="color:var(--green)"><%= t.mac_address %></td>
+                <td class="td-code" style="color:var(--green); letter-spacing:1px"><%= t.app_key %></td>
                 <td class="td-code" style="color:<%= expired ? 'var(--red)' : 'var(--green)' %>">
                   <b><%= t.expire_date %></b>
                 </td>

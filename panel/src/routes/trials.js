@@ -10,7 +10,7 @@ router.get('/', (req, res) => {
   const trials = db.prepare(`
     SELECT t.*, mu.title AS user_title
     FROM trials t
-    LEFT JOIN mac_users mu ON mu.mac_address = t.mac_address
+    LEFT JOIN mac_users mu ON mu.app_key = t.app_key
     ORDER BY t.expire_date ASC
   `).all();
   const today = new Date().toISOString().split('T')[0];
@@ -25,16 +25,16 @@ router.get('/create', (req, res) => {
 
 // Create submit
 router.post('/', (req, res) => {
-  const { mac_address, expire_date } = req.body;
-  if (!mac_address || !expire_date) {
-    req.flash('error', 'MAC address and expiry date are required.');
+  const { app_key, expire_date } = req.body;
+  if (!app_key || !expire_date) {
+    req.flash('error', 'App Key and expiry date are required.');
     return res.redirect('/trials/create');
   }
   try {
     db.prepare(`
-      INSERT INTO trials (mac_address, expire_date) VALUES (?, ?)
-      ON CONFLICT(mac_address) DO UPDATE SET expire_date = excluded.expire_date
-    `).run(mac_address.trim().toUpperCase(), expire_date);
+      INSERT INTO trials (app_key, expire_date) VALUES (?, ?)
+      ON CONFLICT(app_key) DO UPDATE SET expire_date = excluded.expire_date
+    `).run(app_key.trim().toUpperCase(), expire_date);
     req.flash('success', 'Expiry date set.');
     res.redirect('/trials');
   } catch (e) {
@@ -47,18 +47,18 @@ router.post('/', (req, res) => {
 router.get('/:id/edit', (req, res) => {
   const trial = db.prepare('SELECT * FROM trials WHERE id = ?').get(req.params.id);
   if (!trial) { req.flash('error', 'Trial not found.'); return res.redirect('/trials'); }
-  res.render('trials/form', { title: 'Edit Expiration', path: '/trials', trial, mac: trial.mac_address });
+  res.render('trials/form', { title: 'Edit Expiration', path: '/trials', trial, mac: trial.app_key });
 });
 
 // Edit submit
 router.post('/:id', (req, res) => {
-  const { mac_address, expire_date } = req.body;
-  if (!mac_address || !expire_date) {
-    req.flash('error', 'MAC address and expiry date are required.');
+  const { app_key, expire_date } = req.body;
+  if (!app_key || !expire_date) {
+    req.flash('error', 'App Key and expiry date are required.');
     return res.redirect(`/trials/${req.params.id}/edit`);
   }
-  db.prepare('UPDATE trials SET mac_address=?, expire_date=? WHERE id=?')
-    .run(mac_address.trim().toUpperCase(), expire_date, req.params.id);
+  db.prepare('UPDATE trials SET app_key=?, expire_date=? WHERE id=?')
+    .run(app_key.trim().toUpperCase(), expire_date, req.params.id);
   req.flash('success', 'Expiry date updated.');
   res.redirect('/trials');
 });

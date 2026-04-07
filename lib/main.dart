@@ -26,24 +26,22 @@ void main() async {
   await appSettings.load();
 
   // ── Fast path: if we have a cached session, show dashboard immediately ──
-  // Backend auth runs in background and updates credentials silently.
   final hasXtream = _hasXtreamSession(prefs);
   final hasM3u = _hasM3uSession(prefs);
 
   Widget homeScreen;
 
   if (hasXtream || hasM3u) {
-    // Load cached playlist without waiting for backend
     if (hasXtream) await xtreamService.loadSavedPlaylist();
     final sessionType = hasXtream ? 'xtream' : 'm3u';
     homeScreen = DashboardScreen(sessionType: sessionType);
     // Background: refresh credentials from backend (fire & forget)
-    DeviceService.getDeviceId().then((deviceId) async {
-      BackendService.fetchSettings(); // fire & forget
-      final reg = await BackendService.registerDevice(deviceId);
+    DeviceService.getAppKey().then((appKey) async {
+      BackendService.fetchSettings();
+      final reg = await BackendService.registerDevice(appKey);
       if (!reg.success || !reg.registered) return;
       if (reg.trialExpire != null && !reg.trialActive) return;
-      final auth = await BackendService.authenticate(deviceId);
+      final auth = await BackendService.authenticate(appKey);
       if (!auth.success || auth.user == null) return;
       final user = auth.user!;
       if (user.m3uUrl.isNotEmpty) {
@@ -55,22 +53,16 @@ void main() async {
       }
     });
   } else {
-    // No cached session — must contact backend to decide screen
-    BackendService.fetchSettings(); // fire & forget
-    final deviceId = await DeviceService.getDeviceId();
-    final reg = await BackendService.registerDevice(deviceId);
+    BackendService.fetchSettings();
+    final appKey = await DeviceService.getAppKey();
+    final reg = await BackendService.registerDevice(appKey);
 
-    if (!reg.success) {
-      homeScreen = ActivationScreen(deviceId: deviceId);
-    } else if (!reg.registered) {
-      homeScreen = ActivationScreen(deviceId: deviceId);
+    if (!reg.success || !reg.registered) {
+      homeScreen = ActivationScreen(appKey: appKey);
     } else if (reg.trialExpire != null && !reg.trialActive) {
-      homeScreen = _SubscriptionExpiredScreen(
-        deviceId: deviceId,
-        expireDate: reg.trialExpire,
-      );
+      homeScreen = _SubscriptionExpiredScreen(appKey: appKey, expireDate: reg.trialExpire);
     } else {
-      final auth = await BackendService.authenticate(deviceId);
+      final auth = await BackendService.authenticate(appKey);
       if (auth.success && auth.user != null) {
         final user = auth.user!;
         if (user.m3uUrl.isNotEmpty) {
@@ -88,9 +80,9 @@ void main() async {
           homeScreen = const DashboardScreen(sessionType: 'xtream');
         }
       } else if (auth.statusCode == 403) {
-        homeScreen = _SubscriptionExpiredScreen(deviceId: deviceId);
+        homeScreen = _SubscriptionExpiredScreen(appKey: appKey);
       } else {
-        homeScreen = ActivationScreen(deviceId: deviceId);
+        homeScreen = ActivationScreen(appKey: appKey);
       }
     }
   }
@@ -160,11 +152,10 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ── Subscription expired screen ───────────────────────────────────────────
 class _SubscriptionExpiredScreen extends StatelessWidget {
-  final String deviceId;
+  final String appKey;
   final String? expireDate;
-  const _SubscriptionExpiredScreen({required this.deviceId, this.expireDate});
+  const _SubscriptionExpiredScreen({required this.appKey, this.expireDate});
 
   @override
   Widget build(BuildContext context) {
@@ -194,8 +185,8 @@ class _SubscriptionExpiredScreen extends StatelessWidget {
                   style: const TextStyle(color: Colors.white54, fontSize: 14)),
             ],
             const SizedBox(height: 8),
-            Text('Device ID: $deviceId',
-                style: const TextStyle(color: Colors.white38, fontSize: 11)),
+            Text('App Key: $appKey',
+                style: const TextStyle(color: Colors.white38, fontSize: 13, letterSpacing: 1)),
             const SizedBox(height: 24),
             const Text('Please contact support to renew your subscription.',
                 style: TextStyle(color: Colors.white54, fontSize: 13)),
