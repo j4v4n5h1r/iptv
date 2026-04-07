@@ -126,7 +126,7 @@
             <% recentUsers.forEach(u => { %>
               <tr>
                 <td><strong><%= u.title %></strong></td>
-                <td class="td-code" style="color:var(--green); font-size:14px;"><%= u.mac_address %></td>
+                <td class="td-code" style="color:var(--green); font-size:14px;"><%= u.app_key %></td>
                 <td><span class="badge badge-<%= u.protection.toLowerCase() %>"><%= u.protection %></span></td>
                 <td class="td-code" style="font-size:14px;"><%= u.server_title || '—' %></td>
               </tr>
@@ -151,7 +151,7 @@
         <table style="width:100%">
           <thead>
             <tr>
-              <th>MAC Address</th>
+              <th>App Key</th>
               <th>Expires</th>
               <th>Status</th>
             </tr>
@@ -160,7 +160,7 @@
             <% recentTrials.forEach(t => { %>
               <% const expired = t.expire_date < today; %>
               <tr>
-                <td class="td-code" style="color:var(--green); font-size:14px;"><%= t.mac_address %></td>
+                <td class="td-code" style="color:var(--green); font-size:14px;"><%= t.app_key %></td>
                 <td class="td-code" style="color:<%= expired ? 'var(--red)' : 'var(--orange)' %>; font-size:14px;">
                   <b><%= t.expire_date %></b>
                 </td>

@@ -25,6 +25,13 @@ router.get('/', (req, res) => {
       ORDER BY mu.id DESC
     `).all();
   }
+  // Attach all app keys to each user
+  const getKeys = db.prepare('SELECT app_key FROM user_app_keys WHERE mac_user_id = ? ORDER BY id');
+  users = users.map(u => ({
+    ...u,
+    all_app_keys: getKeys.all(u.id).map(r => r.app_key),
+  }));
+
   const codes = db.prepare(`
     SELECT ac.*, s.title AS server_title
     FROM activation_codes ac
@@ -62,24 +69,39 @@ function resolveServerId(serverUrl) {
 
 // Create submit
 router.post('/', (req, res) => {
-  const { title, app_key, username, password, protection, m3u_address, server_url } = req.body;
-  if (!title || !app_key || !username || !password) {
-    req.flash('error', 'Title, App Key, username and password are required.');
+  const { title, username, password, protection, m3u_address, server_url } = req.body;
+  let appKeys = req.body['app_keys[]'] || [];
+  if (!Array.isArray(appKeys)) appKeys = [appKeys];
+  appKeys = appKeys.map(k => k.trim().toUpperCase()).filter(k => k.length > 0);
+
+  if (!title || !username || !password) {
+    req.flash('error', 'Title, username and password are required.');
+    return res.redirect('/mac-users/create');
+  }
+  if (appKeys.length === 0) {
+    req.flash('error', 'En az bir App Key gerekli.');
     return res.redirect('/mac-users/create');
   }
   try {
     const sid = resolveServerId(server_url);
-    const key = app_key.trim().toUpperCase();
-    db.prepare(`
+    const primaryKey = appKeys[0];
+    const userId = db.prepare(`
       INSERT INTO mac_users (title, app_key, username, password, protection, m3u_address, server_id)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
-      title.trim(), key,
+      title.trim(), primaryKey,
       username.trim(), password.trim(),
       protection === 'YES' ? 'YES' : 'NO',
       m3u_address ? m3u_address.trim() : null,
       sid,
-    );
+    ).lastInsertRowid;
+
+    // Save all app keys to user_app_keys
+    const insertKey = db.prepare('INSERT OR IGNORE INTO user_app_keys (mac_user_id, app_key) VALUES (?, ?)');
+    for (const k of appKeys) {
+      insertKey.run(userId, k);
+    }
+
     req.flash('success', 'App user created successfully.');
     res.redirect('/mac-users');
   } catch (e) {
@@ -97,34 +119,48 @@ router.get('/:id/edit', (req, res) => {
   const user = db.prepare('SELECT * FROM mac_users WHERE id = ?').get(req.params.id);
   if (!user) { req.flash('error', 'User not found.'); return res.redirect('/mac-users'); }
   const servers = db.prepare('SELECT * FROM servers ORDER BY title').all();
+  const userAppKeys = db.prepare('SELECT app_key FROM user_app_keys WHERE mac_user_id = ? ORDER BY id').all(req.params.id).map(r => r.app_key);
+  // Include primary key if not already in user_app_keys
+  const allKeys = userAppKeys.length > 0 ? userAppKeys : [user.app_key];
   res.render('mac-users/form', {
-    title: 'Edit App User', path: '/mac-users', user, servers,
+    title: 'Edit App User', path: '/mac-users', user, servers, userAppKeys: allKeys,
   });
 });
 
 // Edit submit
 router.post('/:id', (req, res) => {
-  const { title, app_key, username, password, protection, m3u_address, server_url } = req.body;
+  const { title, username, password, protection, m3u_address, server_url } = req.body;
+  let appKeys = req.body['app_keys[]'] || [];
+  if (!Array.isArray(appKeys)) appKeys = [appKeys];
+  appKeys = appKeys.map(k => k.trim().toUpperCase()).filter(k => k.length > 0);
+
   if (!title || !username || !password) {
     req.flash('error', 'Title, username and password are required.');
     return res.redirect(`/mac-users/${req.params.id}/edit`);
   }
   try {
     const sid = resolveServerId(server_url);
-    const existing = db.prepare('SELECT app_key FROM mac_users WHERE id = ?').get(req.params.id);
-    const key = (app_key && app_key.trim()) ? app_key.trim().toUpperCase() : (existing ? existing.app_key : 'PENDING-' + Date.now());
+    const primaryKey = appKeys.length > 0 ? appKeys[0] : db.prepare('SELECT app_key FROM mac_users WHERE id = ?').get(req.params.id)?.app_key;
     db.prepare(`
       UPDATE mac_users
       SET title=?, app_key=?, username=?, password=?, protection=?, m3u_address=?, server_id=?
       WHERE id=?
     `).run(
-      title.trim(), key,
+      title.trim(), primaryKey,
       username.trim(), password.trim(),
       protection === 'YES' ? 'YES' : 'NO',
       m3u_address ? m3u_address.trim() : null,
       sid,
       req.params.id,
     );
+
+    // Replace user_app_keys for this user
+    db.prepare('DELETE FROM user_app_keys WHERE mac_user_id = ?').run(req.params.id);
+    const insertKey = db.prepare('INSERT OR IGNORE INTO user_app_keys (mac_user_id, app_key) VALUES (?, ?)');
+    for (const k of appKeys) {
+      insertKey.run(req.params.id, k);
+    }
+
     req.flash('success', 'App user updated.');
     res.redirect('/mac-users');
   } catch (e) {

@@ -18,7 +18,7 @@ router.get('/', (req, res) => {
 
   // Latest 5 users
   const recentUsers = db.prepare(`
-    SELECT mu.title, mu.mac_address, mu.protection, s.title AS server_title
+    SELECT mu.title, mu.app_key, mu.protection, s.title AS server_title
     FROM mac_users mu
     LEFT JOIN servers s ON mu.server_id = s.id
     ORDER BY mu.id DESC LIMIT 5
@@ -26,7 +26,7 @@ router.get('/', (req, res) => {
 
   // Latest 5 expiring/expired trials
   const recentTrials = db.prepare(`
-    SELECT mac_address, expire_date FROM trials
+    SELECT app_key, expire_date FROM trials
     ORDER BY expire_date ASC LIMIT 5
   `).all();
 

@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
 import 'package:provider/provider.dart';
 import '../widgets/channel_list_overlay.dart';
 import '../models/channel.dart';
@@ -30,31 +29,24 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
-  late final Player _player;
-  late final VideoController _videoController;
-  late final Widget _videoWidget;
+  VideoPlayerController? _controller;
   late Channel _currentChannel;
+  int _currentChannelIndex = -1;
 
   bool _showControls = true;
   bool _showChannelList = false;
-  bool _isBuffering = false;
-  bool _isPlaying = false;
   bool _showOsd = false;
   bool _isTimeshifted = false;
-  int _currentChannelIndex = -1;
+  bool _isInitialized = false;
   bool _isScrubbing = false;
   double _scrubValue = 0.0;
 
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
-
-  StreamSubscription<bool>?     _playingSub;
-  StreamSubscription<bool>?     _bufferingSub;
-  StreamSubscription<Duration>? _positionSub;
-  StreamSubscription<Duration>? _durationSub;
-
   Timer? _hideControlsTimer;
   Timer? _osdTimer;
+  Timer? _positionTimer;
+
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
 
   final FocusNode _playerFocusNode = FocusNode();
   final FocusNode _backFocus       = FocusNode();
@@ -68,107 +60,69 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     _currentChannel = widget.channel;
     _currentChannelIndex = widget.channels.indexWhere((c) => c.url == widget.channel.url);
-
-    _player = Player(
-      configuration: const PlayerConfiguration(
-        bufferSize: 32 * 1024 * 1024,
-        logLevel: MPVLogLevel.error,
-      ),
-    );
-    _videoController = VideoController(
-      _player,
-      configuration: const VideoControllerConfiguration(
-        hwdec: 'auto',
-      ),
-    );
-
-    // Video widget bir kez oluştur — her build'de yeniden oluşturma
-    _videoWidget = RepaintBoundary(
-      key: const ValueKey('video'),
-      child: SizedBox.expand(
-        child: Video(
-          controller: _videoController,
-          controls: NoVideoControls,
-          fit: BoxFit.contain,
-        ),
-      ),
-    );
-
-    _playingSub = _player.stream.playing.listen((v) {
-      if (mounted && v != _isPlaying) setState(() => _isPlaying = v);
-    });
-    _bufferingSub = _player.stream.buffering.listen((v) {
-      if (mounted && v != _isBuffering) setState(() => _isBuffering = v);
-    });
-
-    // Position: sadece film modunda, saniyede bir güncelle
-    if (widget.isMovie) {
-      _positionSub = _player.stream.position.listen((pos) {
-        if (!mounted || _isScrubbing) return;
-        if ((pos.inSeconds - _position.inSeconds).abs() >= 1) {
-          setState(() => _position = pos);
-        }
-      });
-      _durationSub = _player.stream.duration.listen((dur) {
-        if (mounted && dur != _duration) setState(() => _duration = dur);
-      });
-    }
-
     _resetHideTimer();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _openMedia(_currentChannel.url);
       _playerFocusNode.requestFocus();
+      _openMedia(_currentChannel.url);
     });
   }
 
-  void _openMedia(String url) {
+  String _resolveUrl(String url) {
     final settings = Provider.of<AppSettings>(context, listen: false);
-    _player.open(Media(settings.resolveStreamUrl(url)));
+    return settings.resolveStreamUrl(url);
   }
 
-  void _openEpg() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => EpgScreen(channel: _currentChannel)),
-    );
-  }
+  Future<void> _openMedia(String url) async {
+    final resolved = _resolveUrl(url);
 
-  void _startTimeshift() {
-    if (_currentChannel.streamId == null) return;
-    final xtream = Provider.of<XtreamService>(context, listen: false);
-    if (xtream.serverUrl == null) return;
-
-    final start = DateTime.now().toUtc().subtract(const Duration(minutes: 30));
-    String pad(int n) => n.toString().padLeft(2, '0');
-    final startStr =
-        '${start.year}-${pad(start.month)}-${pad(start.day)}:${pad(start.hour)}-${pad(start.minute)}';
-    final url =
-        '${xtream.serverUrl}/timeshift/${xtream.username}/${xtream.password}/60/$startStr/${_currentChannel.streamId}.ts';
-
-    setState(() => _isTimeshifted = true);
-    _player.open(Media(url));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Timeshift loading...'), duration: Duration(seconds: 2)),
-    );
-
-    Future.delayed(const Duration(seconds: 10), () {
-      if (!mounted || !_isTimeshifted) return;
-      if (!_player.state.playing) {
-        _stopTimeshift();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Timeshift not available on this channel')),
-          );
-        }
-      }
+    // Dispose old controller
+    final old = _controller;
+    setState(() {
+      _isInitialized = false;
+      _controller = null;
     });
+    await old?.dispose();
+
+    final ctrl = VideoPlayerController.networkUrl(
+      Uri.parse(resolved),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+    );
+
+    try {
+      await ctrl.initialize();
+      if (!mounted) { ctrl.dispose(); return; }
+      setState(() {
+        _controller = ctrl;
+        _isInitialized = true;
+        _duration = ctrl.value.duration;
+      });
+      ctrl.play();
+      ctrl.addListener(_onVideoUpdate);
+
+      // Position timer — sadece film modunda
+      if (widget.isMovie) {
+        _positionTimer?.cancel();
+        _positionTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (!mounted || _isScrubbing) return;
+          final pos = _controller?.value.position ?? Duration.zero;
+          if (pos != _position) setState(() => _position = pos);
+        });
+      }
+    } catch (e) {
+      if (!mounted) { ctrl.dispose(); return; }
+      ctrl.dispose();
+      setState(() { _isInitialized = false; _controller = null; });
+    }
   }
 
-  void _stopTimeshift() {
-    setState(() => _isTimeshifted = false);
-    _openMedia(_currentChannel.url);
+  void _onVideoUpdate() {
+    if (!mounted) return;
+    final val = _controller?.value;
+    if (val == null) return;
+    // Trigger rebuild for buffering indicator
+    if (val.isBuffering != (_controller?.value.isBuffering ?? false)) {
+      setState(() {});
+    }
   }
 
   void _changeChannel(Channel channel) {
@@ -217,6 +171,35 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _resetHideTimer();
   }
 
+  void _startTimeshift() {
+    if (_currentChannel.streamId == null) return;
+    final xtream = Provider.of<XtreamService>(context, listen: false);
+    if (xtream.serverUrl == null) return;
+    final start = DateTime.now().toUtc().subtract(const Duration(minutes: 30));
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final startStr = '${start.year}-${pad(start.month)}-${pad(start.day)}:${pad(start.hour)}-${pad(start.minute)}';
+    final url = '${xtream.serverUrl}/timeshift/${xtream.username}/${xtream.password}/60/$startStr/${_currentChannel.streamId}.ts';
+    setState(() => _isTimeshifted = true);
+    _openMedia(url);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Timeshift loading...'), duration: Duration(seconds: 2)),
+    );
+    Future.delayed(const Duration(seconds: 10), () {
+      if (!mounted || !_isTimeshifted) return;
+      if (_controller?.value.isPlaying != true) {
+        _stopTimeshift();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Timeshift not available on this channel')),
+        );
+      }
+    });
+  }
+
+  void _stopTimeshift() {
+    setState(() => _isTimeshifted = false);
+    _openMedia(_currentChannel.url);
+  }
+
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
@@ -237,7 +220,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (_showControls && !_showChannelList) {
       if (key == LogicalKeyboardKey.mediaPlayPause) {
-        _player.playOrPause();
+        _playOrPause();
         _resetHideTimer();
         return KeyEventResult.handled;
       }
@@ -246,7 +229,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (!_showChannelList) {
       if (key == LogicalKeyboardKey.mediaPlayPause) {
-        _player.playOrPause();
+        _playOrPause();
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.arrowUp) {
@@ -264,15 +247,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return KeyEventResult.ignored;
   }
 
+  void _playOrPause() {
+    final ctrl = _controller;
+    if (ctrl == null) return;
+    ctrl.value.isPlaying ? ctrl.pause() : ctrl.play();
+    setState(() {});
+  }
+
   @override
   void dispose() {
     _hideControlsTimer?.cancel();
     _osdTimer?.cancel();
-    _playingSub?.cancel();
-    _bufferingSub?.cancel();
-    _positionSub?.cancel();
-    _durationSub?.cancel();
-    _player.dispose();
+    _positionTimer?.cancel();
+    _controller?.removeListener(_onVideoUpdate);
+    _controller?.dispose();
     _playerFocusNode.dispose();
     _backFocus.dispose();
     _epgFocus.dispose();
@@ -284,6 +272,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ctrl = _controller;
+    final isPlaying = ctrl?.value.isPlaying ?? false;
+    final isBuffering = ctrl?.value.isBuffering ?? !_isInitialized;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Focus(
@@ -295,18 +287,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
           onTap: _toggleControls,
           child: Stack(
             children: [
-              _videoWidget,
+              // Video
+              if (_isInitialized && ctrl != null)
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: AspectRatio(
+                      aspectRatio: ctrl.value.aspectRatio,
+                      child: VideoPlayer(ctrl),
+                    ),
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
 
-              if (_isBuffering)
+              // Buffering
+              if (isBuffering)
                 const Center(
                   child: CircularProgressIndicator(color: Color(0xFF60A5FA)),
                 ),
 
               if (_showControls && !_showChannelList)
-                _buildControlsOverlay(),
+                _buildControlsOverlay(isPlaying),
 
               if (_showOsd && !_showControls && !_showChannelList)
-                _buildOsd(),
+                _buildOsd(isBuffering),
 
               if (_showChannelList)
                 _buildChannelListOverlay(),
@@ -328,9 +332,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
               if (widget.isMovie && _showControls && !_showChannelList)
                 Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
+                  bottom: 0, left: 0, right: 0,
                   child: ExcludeFocus(child: _buildProgressBar()),
                 ),
             ],
@@ -340,7 +342,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildControlsOverlay() {
+  Widget _buildControlsOverlay(bool isPlaying) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -358,77 +360,65 @@ class _PlayerScreenState extends State<PlayerScreen> {
       child: Stack(
         children: [
           Positioned(
-            top: 16,
-            left: 16,
-            child: Row(
-              children: [
-                IconButton(
-                  focusNode: _backFocus,
-                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.picture_in_picture_alt, color: Colors.white, size: 24),
-                  onPressed: () => PipService.enterPip(),
-                ),
-              ],
-            ),
+            top: 16, left: 16,
+            child: Row(children: [
+              IconButton(
+                focusNode: _backFocus,
+                icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+              IconButton(
+                icon: const Icon(Icons.picture_in_picture_alt, color: Colors.white, size: 24),
+                onPressed: () => PipService.enterPip(),
+              ),
+            ]),
           ),
-
           Positioned(
-            top: 20,
-            left: 110,
-            right: 60,
+            top: 20, left: 110, right: 60,
             child: Text(
               _currentChannel.name,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                shadows: [Shadow(color: Colors.black, blurRadius: 6)],
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  shadows: [Shadow(color: Colors.black, blurRadius: 6)]),
+              maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
           ),
-
           if (!widget.isMovie && _currentChannel.streamId != null)
             Positioned(
-              top: 8,
-              right: 8,
+              top: 8, right: 8,
               child: IconButton(
                 focusNode: _epgFocus,
                 icon: const Icon(Icons.calendar_today, color: Colors.white, size: 24),
-                onPressed: _openEpg,
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => EpgScreen(channel: _currentChannel))),
               ),
             ),
-
           Center(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildControlBtn(Icons.fast_rewind, () {
-                  _player.seek(_player.state.position - const Duration(seconds: 10));
+                  final pos = _controller?.value.position ?? Duration.zero;
+                  _controller?.seekTo(pos - const Duration(seconds: 10));
                 }, focusNode: _rewindFocus),
                 const SizedBox(width: 24),
                 _buildControlBtn(
-                  _isPlaying ? Icons.pause_circle : Icons.play_circle,
-                  _player.playOrPause,
+                  isPlaying ? Icons.pause_circle : Icons.play_circle,
+                  _playOrPause,
                   size: 72,
                   focusNode: _playFocus,
                 ),
                 const SizedBox(width: 24),
                 _buildControlBtn(Icons.fast_forward, () {
-                  _player.seek(_player.state.position + const Duration(seconds: 10));
+                  final pos = _controller?.value.position ?? Duration.zero;
+                  _controller?.seekTo(pos + const Duration(seconds: 10));
                 }, focusNode: _fwdFocus),
               ],
             ),
           ),
-
           if (!widget.isMovie && _currentChannel.streamId != null)
             Positioned(
-              bottom: 16,
-              left: 16,
+              bottom: 16, left: 16,
               child: _isTimeshifted
                   ? ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
@@ -472,27 +462,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
           Expanded(
             flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: Video(
-                      controller: _videoController,
-                      controls: NoVideoControls,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _currentChannel.name,
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+            child: Center(
+              child: Text(
+                _currentChannel.name,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -506,10 +482,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return IconButton(
       focusNode: focusNode,
       icon: Icon(icon, color: Colors.white, size: size),
-      onPressed: () {
-        _resetHideTimer();
-        onPressed();
-      },
+      onPressed: () { _resetHideTimer(); onPressed(); },
       style: IconButton.styleFrom(
         backgroundColor: Colors.white.withValues(alpha: 0.15),
         shape: const CircleBorder(),
@@ -517,12 +490,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildOsd() {
+  Widget _buildOsd(bool isBuffering) {
     final chNum = _currentChannelIndex >= 0 ? _currentChannelIndex + 1 : null;
     return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
+      bottom: 0, left: 0, right: 0,
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
         decoration: BoxDecoration(
@@ -542,33 +513,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 children: [
                   if (chNum != null)
                     Text('CH $chNum',
-                        style: const TextStyle(
-                            color: Color(0xFF60A5FA),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold)),
-                  Text(
-                    _currentChannel.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      shadows: [Shadow(color: Colors.black, blurRadius: 6)],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                        style: const TextStyle(color: Color(0xFF60A5FA),
+                            fontSize: 11, fontWeight: FontWeight.bold)),
+                  Text(_currentChannel.name,
+                      style: const TextStyle(color: Colors.white, fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          shadows: [Shadow(color: Colors.black, blurRadius: 6)]),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
-            if (_isBuffering)
+            if (isBuffering)
               const Padding(
                 padding: EdgeInsets.only(left: 12),
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      color: Color(0xFF60A5FA), strokeWidth: 2),
-                ),
+                child: SizedBox(width: 18, height: 18,
+                    child: CircularProgressIndicator(color: Color(0xFF60A5FA), strokeWidth: 2)),
               ),
           ],
         ),
@@ -578,8 +537,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Widget _buildProgressBar() {
     final dur = _duration;
-    final progress =
-        dur.inMilliseconds > 0 ? _position.inMilliseconds / dur.inMilliseconds : 0.0;
+    final progress = dur.inMilliseconds > 0
+        ? _position.inMilliseconds / dur.inMilliseconds
+        : 0.0;
     final displayValue = _isScrubbing ? _scrubValue : progress.clamp(0.0, 1.0);
     final displayPos = _isScrubbing && dur.inMilliseconds > 0
         ? Duration(milliseconds: (_scrubValue * dur.inMilliseconds).toInt())
@@ -602,17 +562,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: Slider(
                 value: displayValue.clamp(0.0, 1.0),
                 onChangeStart: (v) {
-                  setState(() {
-                    _isScrubbing = true;
-                    _scrubValue = v;
-                  });
+                  setState(() { _isScrubbing = true; _scrubValue = v; });
                   _hideControlsTimer?.cancel();
                 },
                 onChanged: (v) => setState(() => _scrubValue = v),
                 onChangeEnd: (v) {
                   if (dur.inMilliseconds > 0) {
-                    _player.seek(
-                        Duration(milliseconds: (v * dur.inMilliseconds).toInt()));
+                    _controller?.seekTo(Duration(milliseconds: (v * dur.inMilliseconds).toInt()));
                   }
                   _isScrubbing = false;
                   _resetHideTimer();
@@ -624,10 +580,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_fmt(displayPos),
-                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                Text(_fmt(dur),
-                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(_fmt(displayPos), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(_fmt(dur), style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
           ],

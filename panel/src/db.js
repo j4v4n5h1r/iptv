@@ -64,6 +64,20 @@ db.exec(`
     UNIQUE(code_id, app_key)
   );
 
+  CREATE TABLE IF NOT EXISTS allowed_app_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code_id INTEGER NOT NULL REFERENCES activation_codes(id) ON DELETE CASCADE,
+    app_key TEXT NOT NULL,
+    UNIQUE(code_id, app_key)
+  );
+
+  CREATE TABLE IF NOT EXISTS user_app_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mac_user_id INTEGER NOT NULL REFERENCES mac_users(id) ON DELETE CASCADE,
+    app_key TEXT NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS trials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     app_key TEXT NOT NULL UNIQUE,

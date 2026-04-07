@@ -47,7 +47,10 @@
               <tr>
                 <td class="td-code"><%= i + 1 %></td>
                 <td><strong><%= u.title %></strong></td>
-                <td class="td-code" style="color:var(--green); letter-spacing:1.5px"><%= u.app_key %></td>
+                <td class="td-code" style="color:var(--green); letter-spacing:1px; line-height:1.8">
+                  <% const keys = u.all_app_keys && u.all_app_keys.length > 0 ? u.all_app_keys : [u.app_key]; %>
+                  <% keys.forEach(k => { %><div><%= k %></div><% }) %>
+                </td>
                 <td class="td-code"><%= u.username %></td>
                 <td><span class="badge badge-<%= u.protection.toLowerCase() %>"><%= u.protection %></span></td>
                 <td class="td-code" style="font-size:14px"><%= u.server_title || '—' %></td>

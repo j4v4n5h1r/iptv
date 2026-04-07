@@ -25,8 +25,22 @@ router.get('/', (req, res) => {
       ORDER BY ac.id DESC
     `).all();
   }
+
+  // Attach allowed_keys list to each code
+  const getAllowed = db.prepare('SELECT app_key FROM allowed_app_keys WHERE code_id = ? ORDER BY id');
+  codes = codes.map(c => ({
+    ...c,
+    allowed_keys: getAllowed.all(c.id).map(r => r.app_key),
+  }));
+
   const servers = db.prepare('SELECT * FROM servers ORDER BY title').all();
-  const macUsers = db.prepare('SELECT * FROM mac_users ORDER BY title').all();
+  const macUsersRaw = db.prepare('SELECT * FROM mac_users ORDER BY title').all();
+  const getKeys = db.prepare('SELECT app_key FROM user_app_keys WHERE mac_user_id = ? ORDER BY id');
+  const macUsers = macUsersRaw.map(u => {
+    const keys = getKeys.all(u.id).map(r => r.app_key);
+    if (keys.length === 0 && u.app_key) keys.push(u.app_key);
+    return { ...u, all_app_keys: keys };
+  });
   res.render('activation/index', {
     title: 'Activation Codes', path: '/activation-codes', codes, servers, macUsers, search,
   });
@@ -34,8 +48,12 @@ router.get('/', (req, res) => {
 
 // Create
 router.post('/', (req, res) => {
-  const { server_id, mac_user_id, count = 1 } = req.body;
-  const num = Math.min(parseInt(count) || 1, 50);
+  const { server_id, mac_user_id } = req.body;
+
+  // Parse allowed app keys
+  let allowedKeys = req.body['allowed_app_keys[]'] || [];
+  if (!Array.isArray(allowedKeys)) allowedKeys = [allowedKeys];
+  allowedKeys = allowedKeys.map(k => k.trim().toUpperCase()).filter(k => k.length > 0);
 
   const chars = '0123456789';
   function genCode() {
@@ -50,24 +68,40 @@ router.post('/', (req, res) => {
   function uniqueCode() {
     const check = db.prepare('SELECT id FROM activation_codes WHERE code = ?');
     let code, attempts = 0;
-    do {
-      code = genCode();
-      attempts++;
-    } while (check.get(code) && attempts < 20);
+    do { code = genCode(); attempts++; } while (check.get(code) && attempts < 20);
     return code;
   }
 
-  const insert = db.prepare(
+  const insertCode = db.prepare(
     'INSERT INTO activation_codes (code, status, server_id, mac_user_id) VALUES (?, ?, ?, ?)'
   );
-  const insertMany = db.transaction(() => {
-    for (let i = 0; i < num; i++) {
-      insert.run(uniqueCode(), 'unused', server_id || null, mac_user_id || null);
-    }
-  });
-  insertMany();
+  const insertAllowed = db.prepare(
+    'INSERT OR IGNORE INTO allowed_app_keys (code_id, app_key) VALUES (?, ?)'
+  );
 
-  req.flash('success', `${num} activation code(s) generated.`);
+  db.transaction(() => {
+    const info = insertCode.run(uniqueCode(), 'unused', server_id || null, mac_user_id || null);
+    const codeId = info.lastInsertRowid;
+
+    // If a user is selected, auto-add their app keys as allowed keys
+    if (mac_user_id) {
+      const userKeys = db.prepare('SELECT app_key FROM user_app_keys WHERE mac_user_id = ?').all(mac_user_id);
+      // Also include primary app_key from mac_users
+      const primaryKey = db.prepare('SELECT app_key FROM mac_users WHERE id = ?').get(mac_user_id);
+      const allUserKeys = new Set(userKeys.map(r => r.app_key));
+      if (primaryKey) allUserKeys.add(primaryKey.app_key);
+      for (const k of allUserKeys) {
+        insertAllowed.run(codeId, k);
+      }
+    } else {
+      // Manual keys if no user selected
+      for (const key of allowedKeys) {
+        insertAllowed.run(codeId, key);
+      }
+    }
+  })();
+
+  req.flash('success', 'Activation code generated.');
   res.redirect('/activation-codes');
 });
 

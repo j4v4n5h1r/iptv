@@ -89,7 +89,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
     _searchController.addListener(() => setState(() => _searchQuery = _searchController.text.toLowerCase()));
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
       _loadFavorites();
       _loadWatchlist();
       _loadInitial();
@@ -467,11 +466,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final xtream = Provider.of<XtreamService>(context, listen: false);
       xtream.logout();
     }
-    final deviceId = await DeviceService.getDeviceId();
+    final appKey = await DeviceService.getAppKey();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: deviceId)),
+        MaterialPageRoute(builder: (_) => ActivationScreen(appKey: appKey)),
         (route) => false,
       );
     }

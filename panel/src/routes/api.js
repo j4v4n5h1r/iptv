@@ -28,7 +28,14 @@ router.post('/auth', (req, res) => {
     FROM mac_users mu
     LEFT JOIN servers s ON mu.server_id = s.id
     WHERE mu.app_key = ?
-  `).get(key);
+    UNION
+    SELECT mu.*, s.url AS server_url, s.title AS server_title
+    FROM mac_users mu
+    LEFT JOIN servers s ON mu.server_id = s.id
+    JOIN user_app_keys uak ON uak.mac_user_id = mu.id
+    WHERE uak.app_key = ?
+    LIMIT 1
+  `).get(key, key);
 
   if (!user) {
     return apiError(res, 404, 'App Key not registered. Please use an activation code.');
@@ -79,6 +86,20 @@ router.post('/activate', (req, res) => {
     return apiError(res, 400, 'Invalid activation code.');
   }
 
+  // Check if this code has an allowed app_keys whitelist
+  const allowedCount = db.prepare(
+    'SELECT COUNT(*) as cnt FROM allowed_app_keys WHERE code_id = ?'
+  ).get(activationCode.id).cnt;
+
+  if (allowedCount > 0) {
+    const allowed = db.prepare(
+      'SELECT id FROM allowed_app_keys WHERE code_id = ? AND app_key = ?'
+    ).get(activationCode.id, key);
+    if (!allowed) {
+      return apiError(res, 403, 'This activation code is not authorized for your device.');
+    }
+  }
+
   // Check if this app_key already used this code
   const alreadyRegistered = db.prepare(
     'SELECT id FROM code_devices WHERE code_id = ? AND app_key = ?'
@@ -102,19 +123,25 @@ router.post('/activate', (req, res) => {
   db.prepare("UPDATE activation_codes SET status='used', used_by=? WHERE id=?")
     .run(key, activationCode.id);
 
-  // If code is linked to a specific mac_user, bind this app_key to that user
+  // If code is linked to a specific mac_user, add this app_key to that user's key list
   let linkedUser = null;
   if (activationCode.mac_user_id) {
     linkedUser = db.prepare('SELECT * FROM mac_users WHERE id = ?').get(activationCode.mac_user_id);
     if (linkedUser) {
-      db.prepare('UPDATE mac_users SET app_key = ? WHERE id = ?')
-        .run(key, linkedUser.id);
+      db.prepare('INSERT OR IGNORE INTO user_app_keys (mac_user_id, app_key) VALUES (?, ?)')
+        .run(linkedUser.id, key);
     }
   }
 
   // If no linked user, auto-create a mac_users entry for this app_key
   if (!linkedUser) {
-    const existing = db.prepare('SELECT id FROM mac_users WHERE app_key = ?').get(key);
+    let existing = db.prepare('SELECT id FROM mac_users WHERE app_key = ?').get(key);
+    if (!existing) {
+      const uakRow = db.prepare('SELECT mac_user_id FROM user_app_keys WHERE app_key = ?').get(key);
+      if (uakRow) {
+        existing = { id: uakRow.mac_user_id };
+      }
+    }
     if (!existing) {
       db.prepare(`
         INSERT INTO mac_users (title, app_key, username, password, protection, m3u_address, server_id)
@@ -132,7 +159,12 @@ router.post('/device/register', (req, res) => {
   if (!app_key) return apiError(res, 400, 'app_key is required');
 
   const key = app_key.trim().toUpperCase();
-  const user = db.prepare('SELECT id FROM mac_users WHERE app_key = ?').get(key);
+  const user = db.prepare(`
+    SELECT id FROM mac_users WHERE app_key = ?
+    UNION
+    SELECT mac_user_id AS id FROM user_app_keys WHERE app_key = ?
+    LIMIT 1
+  `).get(key, key);
   const trial = db.prepare('SELECT * FROM trials WHERE app_key = ?').get(key);
   const today = new Date().toISOString().split('T')[0];
 

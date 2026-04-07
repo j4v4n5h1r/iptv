@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:media_kit/media_kit.dart' show MediaKit; // ignore: depend_on_referenced_packages
 import 'screens/dashboard_screen.dart';
 import 'screens/activation_screen.dart';
 import 'services/xtream_service.dart';
@@ -12,9 +11,7 @@ import 'services/device_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
-
-  await SystemChrome.setPreferredOrientations([
+await SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);

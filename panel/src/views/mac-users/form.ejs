@@ -33,14 +33,33 @@
           value="<%= user ? user.title : '' %>" required>
       </div>
 
+      <!-- App Keys -->
       <div class="form-group">
-        <label class="form-label"><span class="prompt">--</span> App Key <span style="color:var(--text-muted);font-size:13px;">(shown on customer's device)</span></label>
-        <input type="text" name="app_key" class="form-control"
-          placeholder="e.g. VNUX-A3F7-K2P1"
-          value="<%= user ? user.app_key : '' %>"
-          style="font-family:monospace; letter-spacing:2px; text-transform:uppercase;"
-          <%= user ? '' : 'required' %>>
-        <div class="form-hint">Customer sends you this key from their device.</div>
+        <label class="form-label">
+          <span class="prompt">--</span> App Keys
+          <span style="color:var(--text-muted);font-size:13px;">(müşterinin her TV'sinden gelen key)</span>
+        </label>
+        <div id="appKeyList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;">
+          <% const existingKeys = user ? (userAppKeys || [user.app_key]).filter(Boolean) : ['']; %>
+          <% existingKeys.forEach((k, idx) => { %>
+            <div class="key-row">
+              <input type="text" name="app_keys[]" class="form-control"
+                placeholder="VNUX-XXXX-XXXX" value="<%= k %>"
+                style="font-family:monospace; letter-spacing:1.5px; text-transform:uppercase;"
+                oninput="this.value=this.value.toUpperCase()"
+                <%= idx === 0 && !user ? 'required' : '' %>>
+              <% if (idx > 0) { %>
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">
+                  <i class="fa fa-trash"></i>
+                </button>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addKeyRow()">
+          <i class="fa fa-plus"></i> App Key Ekle
+        </button>
+        <div class="form-hint">Her TV için müşteri kendi cihazında görünen App Key'i size gönderir.</div>
       </div>
 
       <input type="hidden" name="protection" value="NO">
@@ -75,7 +94,28 @@
   </div>
 </div>
 
+<style>
+.key-row { display:flex; gap:8px; align-items:center; }
+.key-row input { flex:1; }
+</style>
+
 <script>
+function addKeyRow() {
+  const list = document.getElementById('appKeyList');
+  const row = document.createElement('div');
+  row.className = 'key-row';
+  row.innerHTML = `
+    <input type="text" name="app_keys[]" class="form-control"
+      placeholder="VNUX-XXXX-XXXX"
+      style="font-family:monospace; letter-spacing:1.5px; text-transform:uppercase;"
+      oninput="this.value=this.value.toUpperCase()">
+    <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">
+      <i class="fa fa-trash"></i>
+    </button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
 function extractM3U() {
   const url = document.getElementById('m3u_address').value.trim();
   if (!url) { alert('Please paste an M3U URL first.'); return; }

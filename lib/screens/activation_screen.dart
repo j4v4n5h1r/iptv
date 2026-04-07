@@ -154,157 +154,168 @@ class _ActivationScreenState extends State<ActivationScreen> {
           Positioned.fill(child: Image.asset('assets/wood-bg-dark.jpg', fit: BoxFit.cover)),
           Container(color: Colors.black.withValues(alpha: 0.45)),
           SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
             child: Center(
-            child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  children: [
-                    ColorFiltered(
-                      colorFilter: const ColorFilter.matrix([
-                        0.55,0,0,0,0, 0,0.55,0,0,0, 0,0,0.55,0,0, 0,0,0,1,0
-                      ]),
-                      child: Image.asset('assets/wood-tile-warm.png',
-                          width: 260, height: 56, fit: BoxFit.cover),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      children: [
+                        ColorFiltered(
+                          colorFilter: const ColorFilter.matrix([
+                            0.55,0,0,0,0, 0,0.55,0,0,0, 0,0,0.55,0,0, 0,0,0,1,0
+                          ]),
+                          child: Image.asset('assets/wood-tile-warm.png',
+                              width: 220, height: 48, fit: BoxFit.cover),
+                        ),
+                        Container(
+                          width: 220, height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.30),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.tv, color: Color(0xFFF5E6D0), size: 18),
+                              SizedBox(width: 8),
+                              Text('VIEWNUX',
+                                style: TextStyle(
+                                  color: Color(0xFFF5E6D0),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  letterSpacing: 5,
+                                  shadows: [Shadow(color: Colors.black, blurRadius: 6)],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    Container(
-                      width: 260, height: 56,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.30),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // App Key
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text('App Key', style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 1)),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.appKey,
+                          style: const TextStyle(
+                            color: Color(0xFFD4A017),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Code display
+                  Container(
+                    width: 320,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text('Enter Activation Code',
+                            style: TextStyle(color: Color(0xFFF5E6D0), fontSize: 13)),
+                        const SizedBox(height: 8),
+                        Text(
+                          _formattedCode.isEmpty ? '---- ---- ---- ----' : _formattedCode,
+                          style: TextStyle(
+                            color: _formattedCode.isEmpty ? Colors.white24 : Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 3,
+                          ),
+                        ),
+                        if (_error != null) ...[
+                          const SizedBox(height: 6),
+                          Text(_error!, style: const TextStyle(color: Color(0xFFFFB347), fontSize: 11)),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildNumpad(),
+                  const SizedBox(height: 12),
+
+                  // Activate button
+                  SizedBox(
+                    width: 320,
+                    height: 48,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Stack(
+                        fit: StackFit.expand,
                         children: [
-                          Icon(Icons.tv, color: Color(0xFFF5E6D0), size: 22),
-                          SizedBox(width: 10),
-                          Text('VIEWNUX',
-                            style: TextStyle(
-                              color: Color(0xFFF5E6D0),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 22,
-                              letterSpacing: 5,
-                              shadows: [Shadow(color: Colors.black, blurRadius: 6)],
+                          ColorFiltered(
+                            colorFilter: const ColorFilter.matrix([
+                              0.7,0,0,0,0, 0,0.7,0,0,0, 0,0,0.7,0,0, 0,0,0,1,0
+                            ]),
+                            child: Image.asset('assets/wood-tile-warm.png', fit: BoxFit.cover),
+                          ),
+                          Material(
+                            color: Colors.black.withValues(alpha: 0.20),
+                            child: InkWell(
+                              onTap: _isLoading ? null : _activate,
+                              child: Center(
+                                child: _isLoading
+                                    ? const SizedBox(width: 20, height: 20,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                    : const Text('Activate',
+                                        style: TextStyle(color: Color(0xFFF5E6D0),
+                                            fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'App Key: ${widget.appKey}',
-                style: const TextStyle(color: Colors.white38, fontSize: 11),
-              ),
-              const SizedBox(height: 32),
+                  ),
+                  const SizedBox(height: 8),
 
-              // Code display
-              Container(
-                width: 340,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                ),
-                child: Column(
-                  children: [
-                    const Text('Enter Activation Code',
-                        style: TextStyle(color: Color(0xFFF5E6D0), fontSize: 14)),
-                    const SizedBox(height: 12),
-                    Text(
-                      _formattedCode.isEmpty ? '---- ---- ---- ----' : _formattedCode,
-                      style: TextStyle(
-                        color: _formattedCode.isEmpty ? Colors.white24 : Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 3,
+                  // Demo button
+                  SizedBox(
+                    width: 320,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                        side: const BorderSide(color: Colors.white24),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
+                      onPressed: _isDemoLoading ? null : _tryDemo,
+                      child: _isDemoLoading
+                          ? const SizedBox(width: 18, height: 18,
+                              child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))
+                          : const Text('Try Demo'),
                     ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 8),
-                      Text(_error!, style: const TextStyle(color: Color(0xFFFFB347), fontSize: 12)),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              _buildNumpad(),
-              const SizedBox(height: 20),
-
-              // Activate button
-              SizedBox(
-                width: 340,
-                height: 52,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ColorFiltered(
-                        colorFilter: const ColorFilter.matrix([
-                          0.7,0,0,0,0, 0,0.7,0,0,0, 0,0,0.7,0,0, 0,0,0,1,0
-                        ]),
-                        child: Image.asset('assets/wood-tile-warm.png', fit: BoxFit.cover),
-                      ),
-                      Material(
-                        color: Colors.black.withValues(alpha: 0.20),
-                        child: InkWell(
-                          onTap: _isLoading ? null : _activate,
-                          child: Center(
-                            child: _isLoading
-                                ? const SizedBox(width: 22, height: 22,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Text('Activate',
-                                    style: TextStyle(color: Color(0xFFF5E6D0),
-                                        fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 12),
-
-              // Demo button
-              SizedBox(
-                width: 340,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    side: const BorderSide(color: Colors.white24),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: _isDemoLoading ? null : _tryDemo,
-                  child: _isDemoLoading
-                      ? const SizedBox(
-                          width: 20, height: 20,
-                          child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))
-                      : const Text('Try Demo'),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),   // Column
-          ),   // Center
-          ),   // IntrinsicHeight
-          ),   // ConstrainedBox
-        ),     // SingleChildScrollView
-        ),     // LayoutBuilder
-        ),     // SafeArea
+            ),
+          ),
         ],
       ),
     );

@@ -20,33 +20,50 @@
 <!-- Generate form -->
 <div class="card mb-20">
   <div class="card-header">
-    <span class="card-title">// Generate New Activation Codes</span>
+    <span class="card-title">// Generate New Activation Code</span>
   </div>
   <div class="card-body">
-    <form method="POST" action="/activation-codes" style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
-      <div class="form-group" style="margin:0; flex:1; min-width:180px;">
-        <label class="form-label"><span class="prompt">--</span> MAC User (specific user)</label>
-        <select name="mac_user_id" class="form-control" id="macUserSelect" onchange="onMacUserChange(this)">
-          <option value="">— No specific user —</option>
-          <% macUsers.forEach(u => { %>
-            <option value="<%= u.id %>"><%= u.title %> (<%= u.mac_address %>)</option>
-          <% }) %>
-        </select>
+    <form method="POST" action="/activation-codes">
+
+      <div class="grid-2" style="gap:14px;">
+        <div class="form-group">
+          <label class="form-label"><span class="prompt">--</span> App User <span style="color:var(--text-muted);font-size:13px;">(optional)</span></label>
+          <select name="mac_user_id" class="form-control" onchange="onUserChange(this)">
+            <option value="">— No specific user —</option>
+            <% macUsers.forEach(u => { %>
+              <option value="<%= u.id %>" data-keys="<%= (u.all_app_keys || []).join(',') %>">
+                <%= u.title %> (<%= (u.all_app_keys || [u.app_key]).length %> TV)
+              </option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span class="prompt">--</span> Server <span style="color:var(--text-muted);font-size:13px;">(optional)</span></label>
+          <select name="server_id" class="form-control">
+            <option value="">— Any server —</option>
+            <% servers.forEach(s => { %>
+              <option value="<%= s.id %>"><%= s.title %></option>
+            <% }) %>
+          </select>
+        </div>
       </div>
-      <div class="form-group" style="margin:0; flex:1; min-width:160px;">
-        <label class="form-label"><span class="prompt">--</span> Server</label>
-        <select name="server_id" class="form-control" id="serverSelect">
-          <option value="">— Any server —</option>
-          <% servers.forEach(s => { %>
-            <option value="<%= s.id %>"><%= s.title %></option>
-          <% }) %>
-        </select>
+
+      <!-- Allowed App Keys — auto when user selected, manual otherwise -->
+      <div class="form-group" id="allowedKeysGroup">
+        <label class="form-label">
+          <span class="prompt">--</span> Allowed App Keys
+        </label>
+        <div id="autoKeyPreview" style="display:none; padding:10px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; margin-bottom:8px;"></div>
+        <div id="manualKeySection">
+          <div id="appKeyList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="addKeyRow()">
+            <i class="fa fa-plus"></i> App Key Ekle
+          </button>
+          <div class="form-hint">Kullanıcı seçince app keyleri otomatik eklenir. Kullanıcı seçmezsen manuel ekleyebilirsin. Boş bırakılırsa herkese açık.</div>
+        </div>
       </div>
-      <div class="form-group" style="margin:0; width:110px;">
-        <label class="form-label"><span class="prompt">--</span> Count</label>
-        <input type="number" name="count" class="form-control" value="1" min="1" max="50">
-      </div>
-      <button type="submit" class="btn btn-primary" style="margin-bottom:0;">
+
+      <button type="submit" class="btn btn-primary">
         <i class="fa fa-bolt"></i> Generate
       </button>
     </form>
@@ -72,7 +89,8 @@
               <th>#</th>
               <th>Activation Code</th>
               <th>Status</th>
-              <th>Used By (MAC)</th>
+              <th>Allowed Keys</th>
+              <th>Used By</th>
               <th>Server</th>
               <th>Created</th>
               <th>Actions</th>
@@ -89,6 +107,15 @@
                   </button>
                 </td>
                 <td><span class="badge badge-<%= c.status %>"><%= c.status %></span></td>
+                <td class="td-code" style="font-size:13px; color:var(--text-muted);">
+                  <% if (c.allowed_keys && c.allowed_keys.length > 0) { %>
+                    <% c.allowed_keys.forEach(k => { %>
+                      <div style="color:var(--cyan); letter-spacing:.5px;"><%= k %></div>
+                    <% }) %>
+                  <% } else { %>
+                    <span style="color:var(--text-muted)">herkese açık</span>
+                  <% } %>
+                </td>
                 <td class="td-code"><%= c.used_by || '—' %></td>
                 <td class="td-code"><%= c.server_title || '—' %></td>
                 <td class="td-code"><%= c.created_at ? c.created_at.split('T')[0] : '—' %></td>
@@ -114,39 +141,54 @@
 
 <style>
 .btn-copy {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px 5px;
-  margin-left: 6px;
-  border-radius: 3px;
-  font-size: 14px;
-  transition: color .15s;
-  vertical-align: middle;
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  padding: 2px 5px; margin-left: 6px; border-radius: 3px; font-size: 14px;
+  transition: color .15s; vertical-align: middle;
 }
 .btn-copy:hover { color: var(--green); }
 .btn-copy.copied { color: var(--green); }
+.key-row { display:flex; gap:8px; align-items:center; }
+.key-row input { flex:1; font-family:monospace; letter-spacing:1.5px; text-transform:uppercase; }
 </style>
 
 <script>
 $(document).ready(function() {
   $('#actTable').DataTable({
     lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
-    order: [[5, 'desc']],
-    columnDefs: [{ orderable: false, targets: 6 }],
+    order: [[6, 'desc']],
+    columnDefs: [{ orderable: false, targets: 7 }],
     language: { search: '<i class="fa fa-search"></i>', searchPlaceholder: 'Search codes...' }
   });
 });
 
-function onMacUserChange(sel) {
-  const countInput = sel.closest('form').querySelector('[name="count"]');
-  if (sel.value) {
-    countInput.value = 1;
-    countInput.disabled = true;
+function onUserChange(sel) {
+  const preview = document.getElementById('autoKeyPreview');
+  const manual = document.getElementById('manualKeySection');
+  const keys = sel.value ? (sel.selectedOptions[0].dataset.keys || '').split(',').filter(k => k) : [];
+  if (keys.length > 0) {
+    preview.style.display = 'block';
+    manual.style.display = 'none';
+    preview.innerHTML = '<div style="color:var(--text-muted);font-size:13px;margin-bottom:6px;">Bu kullanıcının TV\'leri otomatik eklendi:</div>' +
+      keys.map(k => `<div style="color:var(--cyan);font-family:monospace;letter-spacing:1px;">${k}</div>`).join('');
   } else {
-    countInput.disabled = false;
+    preview.style.display = 'none';
+    manual.style.display = 'block';
   }
+}
+
+function addKeyRow(value) {
+  const list = document.getElementById('appKeyList');
+  const row = document.createElement('div');
+  row.className = 'key-row';
+  row.innerHTML = `
+    <input type="text" name="allowed_app_keys[]" class="form-control"
+      placeholder="VNUX-XXXX-XXXX" value="${value || ''}"
+      oninput="this.value=this.value.toUpperCase()">
+    <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">
+      <i class="fa fa-trash"></i>
+    </button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
 }
 
 function copyCode(btn, code) {
@@ -154,10 +196,7 @@ function copyCode(btn, code) {
     const icon = btn.querySelector('i');
     icon.className = 'fa fa-check';
     btn.classList.add('copied');
-    setTimeout(() => {
-      icon.className = 'fa fa-copy';
-      btn.classList.remove('copied');
-    }, 1500);
+    setTimeout(() => { icon.className = 'fa fa-copy'; btn.classList.remove('copied'); }, 1500);
   });
 }
 </script>

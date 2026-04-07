@@ -175,6 +175,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ── Clear cache ─────────────────────────────────────────────────────────
+  void _clearCache() {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C1A06),
+        title: const Text('Clear Cache', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Playlist cache, channel list and image cache will be deleted. Login information will not be affected.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clear', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    ).then((confirmed) async {
+      if (confirmed != true) return;
+      final prefs = await SharedPreferences.getInstance();
+      // Remove cached playlist/channel data but keep credentials & app key
+      final keysToKeep = {
+        'app_key', 'xtream_server', 'xtream_username', 'xtream_password',
+        'm3u_active_url', 'session_type',
+      };
+      final allKeys = prefs.getKeys();
+      for (final key in allKeys) {
+        if (!keysToKeep.contains(key)) {
+          await prefs.remove(key);
+        }
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cache cleared')));
+      }
+    });
+  }
+
   // ── Clear history ───────────────────────────────────────────────────────
   void _clearHistory() {
     showDialog<bool>(
@@ -354,6 +395,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: l10n.get('settings_clear_history'),
                   subtitle: l10n.get('settings_clear_history_sub'),
                   onTap: _clearHistory,
+                ),
+                _settingsTile(
+                  icon: Icons.cleaning_services,
+                  title: 'Clear Cache',
+                  subtitle: 'Playlist & channel data',
+                  onTap: _clearCache,
                 ),
 
                 // ── Update ────────────────────────────────────────────────

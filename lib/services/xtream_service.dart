@@ -1,5 +1,6 @@
 
 import 'dart:convert';
+import 'dart:isolate';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/channel.dart';
@@ -145,14 +146,18 @@ class XtreamService {
     try {
       String url = _apiUrl('get_live_streams');
       if (categoryId != null) url += '&category_id=$categoryId';
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
       if (res.statusCode == 200) {
-        final List data = json.decode(res.body);
+        final body = res.body;
+        final serverUrl = _serverUrl;
+        final username = _username;
+        final password = _password;
+        final List data = await Isolate.run(() => json.decode(body) as List);
         return data.map((s) {
           final id = s['stream_id'].toString();
           return Channel(
             name: s['name'] ?? '',
-            url: '$_serverUrl/live/$_username/$_password/$id.m3u8',
+            url: '$serverUrl/live/$username/$password/$id.m3u8',
             logo: s['stream_icon'],
             num: s['num'] is int ? s['num'] : int.tryParse(s['num'].toString()),
             categoryId: s['category_id']?.toString(),
@@ -173,13 +178,17 @@ class XtreamService {
       if (categoryId != null) url += '&category_id=$categoryId';
       final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
       if (res.statusCode == 200) {
-        final List data = json.decode(res.body);
+        final body = res.body;
+        final serverUrl = _serverUrl;
+        final username = _username;
+        final password = _password;
+        final List data = await Isolate.run(() => json.decode(body) as List);
         return data.map((s) {
           final id = s['stream_id'].toString();
           final ext = s['container_extension'] ?? 'mp4';
           return Channel(
             name: s['name'] ?? '',
-            url: '$_serverUrl/movie/$_username/$_password/$id.$ext',
+            url: '$serverUrl/movie/$username/$password/$id.$ext',
             logo: s['stream_icon'],
             num: s['num'] is int ? s['num'] : int.tryParse(s['num'].toString()),
             categoryId: s['category_id']?.toString(),

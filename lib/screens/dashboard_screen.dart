@@ -69,10 +69,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await prefs.remove('xtream_username');
     await prefs.remove('xtream_password');
     await prefs.remove('m3u_active_url');
-    final id = await DeviceService.getDeviceId();
+    final id = await DeviceService.getAppKey();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(context,
-      MaterialPageRoute(builder: (_) => ActivationScreen(deviceId: id)),
+      MaterialPageRoute(builder: (_) => ActivationScreen(appKey: id)),
       (r) => false);
   }
 
