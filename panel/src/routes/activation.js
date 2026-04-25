@@ -50,10 +50,10 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const { server_id, mac_user_id } = req.body;
 
-  // Parse allowed app keys
-  let allowedKeys = req.body['allowed_app_keys[]'] || [];
-  if (!Array.isArray(allowedKeys)) allowedKeys = [allowedKeys];
-  allowedKeys = allowedKeys.map(k => k.trim().toUpperCase()).filter(k => k.length > 0);
+  if (!mac_user_id) {
+    req.flash('error', 'Kullanıcı seçmeden aktivasyon kodu oluşturulamaz.');
+    return res.redirect('/activation-codes');
+  }
 
   const chars = '0123456789';
   function genCode() {

@@ -124,10 +124,7 @@ class AppSettings extends ChangeNotifier {
   }
 
   // ── Stream URL builder ────────────────────────────────────────────────────
-  /// Kanal URL'sini stream moduna göre dönüştürür.
   String resolveStreamUrl(String url) {
-    if (_streamMode == 'auto') return url;
-    // .m3u8 → .ts veya tersi
     if (_streamMode == 'ts' && url.endsWith('.m3u8')) {
       return url.replaceAll('.m3u8', '.ts');
     }

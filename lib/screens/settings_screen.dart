@@ -22,7 +22,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
-      _backFocus.requestFocus();
     });
   }
 
@@ -49,10 +48,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? subtitle,
     Widget? trailing,
     VoidCallback? onTap,
+    bool autofocus = false,
   }) {
     final focusNode = FocusNode();
     return Focus(
       focusNode: focusNode,
+      autofocus: autofocus,
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
             (event.logicalKey == LogicalKeyboardKey.select ||
@@ -175,47 +176,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ── Clear cache ─────────────────────────────────────────────────────────
-  void _clearCache() {
-    showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF2C1A06),
-        title: const Text('Clear Cache', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Playlist cache, channel list and image cache will be deleted. Login information will not be affected.',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    ).then((confirmed) async {
-      if (confirmed != true) return;
-      final prefs = await SharedPreferences.getInstance();
-      // Remove cached playlist/channel data but keep credentials & app key
-      final keysToKeep = {
-        'app_key', 'xtream_server', 'xtream_username', 'xtream_password',
-        'm3u_active_url', 'session_type',
-      };
-      final allKeys = prefs.getKeys();
-      for (final key in allKeys) {
-        if (!keysToKeep.contains(key)) {
-          await prefs.remove(key);
-        }
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cache cleared')));
-      }
-    });
-  }
-
   // ── Clear history ───────────────────────────────────────────────────────
   void _clearHistory() {
     showDialog<bool>(
@@ -318,6 +278,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: l10n.get('settings_language'),
                   subtitle: _languageLabel(settings.language),
                   onTap: () => _showLanguagePicker(settings),
+                  autofocus: true,
                 ),
 
                 // ── Playback ──────────────────────────────────────────────
@@ -396,12 +357,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: l10n.get('settings_clear_history_sub'),
                   onTap: _clearHistory,
                 ),
-                _settingsTile(
-                  icon: Icons.cleaning_services,
-                  title: 'Clear Cache',
-                  subtitle: 'Playlist & channel data',
-                  onTap: _clearCache,
-                ),
 
                 // ── Update ────────────────────────────────────────────────
                 _sectionHeader('Update'),
@@ -448,26 +403,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showLanguagePicker(AppSettings s) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: const Color(0xFF2C1A06),
         title: const Text('Language', style: TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _langOption(s, 'en', '🇬🇧  English'),
-              const SizedBox(height: 8),
-              _langOption(s, 'tr', '🇹🇷  Türkçe'),
-              const SizedBox(height: 8),
-              _langOption(s, 'ar', '🇸🇦  العربية'),
-              const SizedBox(height: 8),
-              _langOption(s, 'hi', '🇮🇳  हिन्दी'),
-              const SizedBox(height: 8),
-              _langOption(s, 'ur', '🇵🇰  اردو'),
-              const SizedBox(height: 8),
-              _langOption(s, 'id', '🇮🇩  Bahasa Indonesia'),
-              const SizedBox(height: 8),
-              _langOption(s, 'bn', '🇧🇩  বাংলা'),
+              _langOption(s, 'en', '🇬🇧  English', dialogCtx),
             ],
           ),
         ),
@@ -475,10 +418,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _langOption(AppSettings s, String code, String label) {
+  Widget _langOption(AppSettings s, String code, String label, BuildContext dialogCtx) {
     final selected = s.language == code;
     return InkWell(
-      onTap: () { s.setLanguage(code); Navigator.pop(context); },
+      onTap: () { s.setLanguage(code); Navigator.pop(dialogCtx); },
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

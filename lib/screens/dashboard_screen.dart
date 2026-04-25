@@ -21,7 +21,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _selectedIndex = 1; // Live TV default
+  int _selectedIndex = 1; // Movies default (centered on open)
 
   late final List<_MenuItem> _items;
 
@@ -29,12 +29,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _items = [
-      _MenuItem(icon: Icons.settings,      label: 'Settings',  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
-      _MenuItem(icon: Icons.tv,            label: 'Live TV',   onPressed: () => _open('live')),
-      _MenuItem(icon: Icons.movie,         label: 'Movies',    onPressed: () => _open('vod')),
-      _MenuItem(icon: Icons.video_library, label: 'Series',    onPressed: () => _open('series')),
-      _MenuItem(icon: Icons.favorite,      label: 'Favorites', onPressed: () => _open('favorites')),
-      _MenuItem(icon: Icons.logout,        label: 'Logout',    onPressed: _logout),
+      _MenuItem(icon: Icons.settings,        label: 'Settings',    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
+      _MenuItem(icon: Icons.movie,           label: 'Movies',      onPressed: () => _open('vod')),
+      _MenuItem(icon: Icons.tv,              label: 'Live TV',     onPressed: () => _open('live')),
+      _MenuItem(icon: Icons.video_library,   label: 'Series',      onPressed: () => _open('series')),
+      _MenuItem(icon: Icons.favorite,        label: 'Favorites',   onPressed: () => _open('favorites')),
+      _MenuItem(icon: Icons.history,         label: 'Recents',     onPressed: () => _open('recents')),
+      _MenuItem(icon: Icons.cleaning_services, label: 'Clear Cache', onPressed: _clearCache),
+      _MenuItem(icon: Icons.logout,          label: 'Logout',      onPressed: _logout),
     ];
   }
 
@@ -46,6 +48,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => HomeScreen(sessionType: widget.sessionType, initialTab: section),
     ));
+  }
+
+  void _clearCache() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A0D00),
+        title: const Text('Clear Cache', style: TextStyle(color: Color(0xFFF5E6D0))),
+        content: const Text('Playlist cache and channel data will be deleted. Login info will not be affected.',
+            style: TextStyle(color: Color(0xFFF5E6D0))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFFF5E6D0)))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Clear', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final prefs = await SharedPreferences.getInstance();
+    const keep = {'app_key', 'xtream_server', 'xtream_username', 'xtream_password', 'm3u_active_url', 'session_type'};
+    for (final key in prefs.getKeys()) {
+      if (!keep.contains(key)) await prefs.remove(key);
+    }
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cache cleared')));
   }
 
   void _logout() async {
@@ -167,13 +195,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         clipBehavior: Clip.none,
                         alignment: Alignment.center,
                         children: [
-                          // Scrolling cards layer
                           AnimatedBuilder(
                             animation: const AlwaysStoppedAnimation(0),
                             builder: (_, __) => _buildCarousel(screenW),
                           ),
-                          // Fixed center selection frame (always on top)
-                          _buildSelectionFrame(),
                         ],
                       );
                     }),
@@ -204,10 +229,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildCarousel(double screenW) {
-    // Offset: how much the strip shifts so selected card is at center
-    // Card center position in strip = _selectedIndex * _kCardStep + _kCardSize/2
-    // We want that to be at screenW/2
-    final double stripOffset = screenW / 2 - _selectedIndex * _kCardStep - _kCardSize / 2;
+    final int n = _items.length;
+    final double totalStripW = n * _kCardSize + (n - 1) * _kCardGap;
+    // Center selected card
+    double stripOffset = screenW / 2 - _selectedIndex * _kCardStep - _kCardSize / 2;
+    // Clamp: left edge ≥ 0, right edge ≤ screenW
+    final double minOffset = screenW - totalStripW; // last card flush right
+    final double maxOffset = 0;                     // first card flush left
+    stripOffset = stripOffset.clamp(minOffset, maxOffset);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 260),
@@ -237,13 +266,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       height: _kCardSize,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: focused ? 0.3 : 0.7),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: focused ? Border.all(color: Colors.white.withValues(alpha: 0.85), width: 3) : null,
+        boxShadow: focused
+            ? [
+                BoxShadow(color: Colors.white.withValues(alpha: 0.35), blurRadius: 40, spreadRadius: 8),
+                BoxShadow(color: Colors.white.withValues(alpha: 0.12), blurRadius: 80, spreadRadius: 20),
+              ]
+            : [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 24, offset: const Offset(0, 8)),
+              ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -311,30 +342,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSelectionFrame() {
-    return IgnorePointer(
-      child: Container(
-        width: _kCardSize + 12,
-        height: _kCardSize + 12,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.85), width: 3),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.35),
-              blurRadius: 40,
-              spreadRadius: 8,
-            ),
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.12),
-              blurRadius: 80,
-              spreadRadius: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ── Model ─────────────────────────────────────────────────────────────────────

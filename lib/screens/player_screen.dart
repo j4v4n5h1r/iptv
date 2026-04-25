@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:video_player/video_player.dart';
 import 'package:provider/provider.dart';
 import '../widgets/channel_list_overlay.dart';
 import '../models/channel.dart';
@@ -29,7 +28,6 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
-  VideoPlayerController? _controller;
   late Channel _currentChannel;
   int _currentChannelIndex = -1;
 
@@ -37,16 +35,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _showChannelList = false;
   bool _showOsd = false;
   bool _isTimeshifted = false;
-  bool _isInitialized = false;
+  bool _isBuffering = true;
+  bool _isPlaying = false;
   bool _isScrubbing = false;
   double _scrubValue = 0.0;
 
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+
+  MethodChannel? _playerChannel;
   Timer? _hideControlsTimer;
   Timer? _osdTimer;
   Timer? _positionTimer;
-
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
 
   final FocusNode _playerFocusNode = FocusNode();
   final FocusNode _backFocus       = FocusNode();
@@ -63,7 +63,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _resetHideTimer();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playerFocusNode.requestFocus();
-      _openMedia(_currentChannel.url);
     });
   }
 
@@ -72,57 +71,49 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return settings.resolveStreamUrl(url);
   }
 
-  Future<void> _openMedia(String url) async {
-    final resolved = _resolveUrl(url);
+  void _onPlatformViewCreated(int viewId) {
+    _playerChannel = MethodChannel('com.wallyt.iptv/exoplayer_$viewId');
+    _playerChannel!.setMethodCallHandler(_onPlayerEvent);
+    _loadUrl(_currentChannel.url);
 
-    // Dispose old controller
-    final old = _controller;
-    setState(() {
-      _isInitialized = false;
-      _controller = null;
-    });
-    await old?.dispose();
-
-    final ctrl = VideoPlayerController.networkUrl(
-      Uri.parse(resolved),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
-    );
-
-    try {
-      await ctrl.initialize();
-      if (!mounted) { ctrl.dispose(); return; }
-      setState(() {
-        _controller = ctrl;
-        _isInitialized = true;
-        _duration = ctrl.value.duration;
+    if (widget.isMovie) {
+      _positionTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+        if (!mounted || _isScrubbing) return;
+        try {
+          final pos = await _playerChannel?.invokeMethod<int>('getPosition') ?? 0;
+          final dur = await _playerChannel?.invokeMethod<int>('getDuration') ?? 0;
+          if (mounted) {
+            setState(() {
+              _position = Duration(milliseconds: pos);
+              if (dur > 0) _duration = Duration(milliseconds: dur);
+            });
+          }
+        } catch (_) {}
       });
-      ctrl.play();
-      ctrl.addListener(_onVideoUpdate);
-
-      // Position timer — sadece film modunda
-      if (widget.isMovie) {
-        _positionTimer?.cancel();
-        _positionTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-          if (!mounted || _isScrubbing) return;
-          final pos = _controller?.value.position ?? Duration.zero;
-          if (pos != _position) setState(() => _position = pos);
-        });
-      }
-    } catch (e) {
-      if (!mounted) { ctrl.dispose(); return; }
-      ctrl.dispose();
-      setState(() { _isInitialized = false; _controller = null; });
     }
   }
 
-  void _onVideoUpdate() {
-    if (!mounted) return;
-    final val = _controller?.value;
-    if (val == null) return;
-    // Trigger rebuild for buffering indicator
-    if (val.isBuffering != (_controller?.value.isBuffering ?? false)) {
-      setState(() {});
+  Future<dynamic> _onPlayerEvent(MethodCall call) async {
+    switch (call.method) {
+      case 'onState':
+        final state = call.arguments['state'] as String?;
+        if (mounted) {
+          setState(() {
+            _isBuffering = state == 'buffering';
+          });
+        }
+        break;
+      case 'onPlaying':
+        final playing = call.arguments['playing'] as bool? ?? false;
+        if (mounted) setState(() => _isPlaying = playing);
+        break;
     }
+  }
+
+  void _loadUrl(String url) {
+    final resolved = _resolveUrl(url);
+    _playerChannel?.invokeMethod('load', {'url': resolved});
+    setState(() { _isBuffering = true; });
   }
 
   void _changeChannel(Channel channel) {
@@ -134,7 +125,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _showControls = false;
       _showOsd = true;
     });
-    _openMedia(channel.url);
+    _loadUrl(channel.url);
     _osdTimer?.cancel();
     _osdTimer = Timer(const Duration(seconds: 4), () {
       if (mounted) setState(() => _showOsd = false);
@@ -171,6 +162,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _resetHideTimer();
   }
 
+  void _playOrPause() {
+    if (_isPlaying) {
+      _playerChannel?.invokeMethod('pause');
+    } else {
+      _playerChannel?.invokeMethod('play');
+    }
+    setState(() {});
+  }
+
   void _startTimeshift() {
     if (_currentChannel.streamId == null) return;
     final xtream = Provider.of<XtreamService>(context, listen: false);
@@ -180,24 +180,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final startStr = '${start.year}-${pad(start.month)}-${pad(start.day)}:${pad(start.hour)}-${pad(start.minute)}';
     final url = '${xtream.serverUrl}/timeshift/${xtream.username}/${xtream.password}/60/$startStr/${_currentChannel.streamId}.ts';
     setState(() => _isTimeshifted = true);
-    _openMedia(url);
+    _loadUrl(url);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Timeshift loading...'), duration: Duration(seconds: 2)),
     );
     Future.delayed(const Duration(seconds: 10), () {
       if (!mounted || !_isTimeshifted) return;
-      if (_controller?.value.isPlaying != true) {
+      if (!_isPlaying) {
         _stopTimeshift();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Timeshift not available on this channel')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Timeshift not available on this channel')),
+          );
+        }
       }
     });
   }
 
   void _stopTimeshift() {
     setState(() => _isTimeshifted = false);
-    _openMedia(_currentChannel.url);
+    _loadUrl(_currentChannel.url);
   }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
@@ -207,10 +209,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (key == LogicalKeyboardKey.goBack || key == LogicalKeyboardKey.escape) {
       if (_showChannelList) {
         setState(() => _showChannelList = false);
-        _playerFocusNode.requestFocus();
-      } else if (_showControls) {
-        _hideControlsTimer?.cancel();
-        setState(() => _showControls = false);
         _playerFocusNode.requestFocus();
       } else {
         Navigator.pop(context);
@@ -247,20 +245,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return KeyEventResult.ignored;
   }
 
-  void _playOrPause() {
-    final ctrl = _controller;
-    if (ctrl == null) return;
-    ctrl.value.isPlaying ? ctrl.pause() : ctrl.play();
-    setState(() {});
-  }
-
   @override
   void dispose() {
     _hideControlsTimer?.cancel();
     _osdTimer?.cancel();
     _positionTimer?.cancel();
-    _controller?.removeListener(_onVideoUpdate);
-    _controller?.dispose();
+    _playerChannel?.invokeMethod('dispose');
+    _playerChannel?.setMethodCallHandler(null);
     _playerFocusNode.dispose();
     _backFocus.dispose();
     _epgFocus.dispose();
@@ -272,10 +263,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = _controller;
-    final isPlaying = ctrl?.value.isPlaying ?? false;
-    final isBuffering = ctrl?.value.isBuffering ?? !_isInitialized;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Focus(
@@ -287,30 +274,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
           onTap: _toggleControls,
           child: Stack(
             children: [
-              // Video
-              if (_isInitialized && ctrl != null)
-                Positioned.fill(
-                  child: RepaintBoundary(
-                    child: AspectRatio(
-                      aspectRatio: ctrl.value.aspectRatio,
-                      child: VideoPlayer(ctrl),
-                    ),
-                  ),
-                )
-              else
-                const SizedBox.shrink(),
+              // Native ExoPlayer surface
+              Positioned.fill(
+                child: AndroidView(
+                  viewType: 'com.wallyt.iptv/exoplayer_view',
+                  onPlatformViewCreated: _onPlatformViewCreated,
+                  creationParamsCodec: const StandardMessageCodec(),
+                ),
+              ),
 
-              // Buffering
-              if (isBuffering)
+              // Buffering indicator
+              if (_isBuffering)
                 const Center(
                   child: CircularProgressIndicator(color: Color(0xFF60A5FA)),
                 ),
 
               if (_showControls && !_showChannelList)
-                _buildControlsOverlay(isPlaying),
+                _buildControlsOverlay(_isPlaying),
 
               if (_showOsd && !_showControls && !_showChannelList)
-                _buildOsd(isBuffering),
+                _buildOsd(_isBuffering),
 
               if (_showChannelList)
                 _buildChannelListOverlay(),
@@ -397,9 +380,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildControlBtn(Icons.fast_rewind, () {
-                  final pos = _controller?.value.position ?? Duration.zero;
-                  _controller?.seekTo(pos - const Duration(seconds: 10));
+                _buildControlBtn(Icons.fast_rewind, () async {
+                  final pos = await _playerChannel?.invokeMethod<int>('getPosition') ?? 0;
+                  _playerChannel?.invokeMethod('seekTo', {'ms': (pos - 10000).clamp(0, 999999999)});
                 }, focusNode: _rewindFocus),
                 const SizedBox(width: 24),
                 _buildControlBtn(
@@ -409,9 +392,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   focusNode: _playFocus,
                 ),
                 const SizedBox(width: 24),
-                _buildControlBtn(Icons.fast_forward, () {
-                  final pos = _controller?.value.position ?? Duration.zero;
-                  _controller?.seekTo(pos + const Duration(seconds: 10));
+                _buildControlBtn(Icons.fast_forward, () async {
+                  final pos = await _playerChannel?.invokeMethod<int>('getPosition') ?? 0;
+                  _playerChannel?.invokeMethod('seekTo', {'ms': pos + 10000});
                 }, focusNode: _fwdFocus),
               ],
             ),
@@ -568,7 +551,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 onChanged: (v) => setState(() => _scrubValue = v),
                 onChangeEnd: (v) {
                   if (dur.inMilliseconds > 0) {
-                    _controller?.seekTo(Duration(milliseconds: (v * dur.inMilliseconds).toInt()));
+                    final ms = (v * dur.inMilliseconds).toInt();
+                    _playerChannel?.invokeMethod('seekTo', {'ms': ms});
                   }
                   _isScrubbing = false;
                   _resetHideTimer();

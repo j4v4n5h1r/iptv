@@ -46,6 +46,7 @@ app.use('/activation-codes', require('./routes/activation'));
 app.use('/trials', require('./routes/trials'));
 app.use('/settings', require('./routes/settings'));
 app.use('/api', require('./routes/api'));
+app.use('/stream', require('./routes/stream'));
 
 // Root redirect
 app.get('/', (req, res) => {

@@ -19,7 +19,8 @@ class DeviceService {
       final info = DeviceInfoPlugin();
       if (Platform.isAndroid) {
         final android = await info.androidInfo;
-        hardwareId = android.id;
+        // Combine stable hardware identifiers — survives app reinstall
+        hardwareId = '${android.board}|${android.hardware}|${android.device}|${android.model}|${android.product}';
       } else if (Platform.isIOS) {
         final ios = await info.iosInfo;
         hardwareId = ios.identifierForVendor ?? 'UNKNOWN';

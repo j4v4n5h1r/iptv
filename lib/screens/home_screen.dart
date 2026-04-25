@@ -657,44 +657,61 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   final isAll = i == 0;
                   final name = isAll ? 'All' : cats[i - 1].name;
                   final id = isAll ? null : cats[i - 1].id;
-                      return _buildCategoryGridItem(name, id);
+                  return _buildCategoryGridItem(name, id, autofocus: i == 0);
                 },
               ),
             ),
     );
   }
 
-  Widget _buildCategoryGridItem(String name, String? id) {
+  Widget _buildCategoryGridItem(String name, String? id, {bool autofocus = false}) {
     return FocusableActionDetector(
+      autofocus: autofocus,
       actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _onCategoryTap(id))},
       child: Builder(builder: (ctx) {
         final focused = Focus.of(ctx).hasFocus;
         return GestureDetector(
           onTap: () => _onCategoryTap(id),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: focused ? const Color(0xFF2A2A3A) : const Color(0xFF1A1A28),
-              border: Border.all(
-                color: focused ? const Color(0xFFE8C47A) : Colors.white24,
-                width: focused ? 2.5 : 1,
-              ),
-            ),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  name,
-                  style: TextStyle(
-                    color: focused ? Colors.white : Colors.white70,
-                    fontSize: 13,
-                    fontWeight: focused ? FontWeight.bold : FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ColorFiltered(
+                  colorFilter: ColorFilter.matrix(focused
+                      ? [0.85,0,0,0,0, 0,0.85,0,0,0, 0,0,0.85,0,0, 0,0,0,1,0]
+                      : [0.45,0,0,0,0, 0,0.45,0,0,0, 0,0,0.45,0,0, 0,0,0,1,0]),
+                  child: Image.asset('assets/wood-tile-warm.png', fit: BoxFit.cover),
                 ),
-              ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: focused ? 0.10 : 0.40),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: focused ? Colors.white.withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.15),
+                      width: focused ? 2.5 : 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          color: focused ? Colors.white : const Color(0xFFF5E6D0),
+                          fontSize: 13,
+                          fontWeight: focused ? FontWeight.bold : FontWeight.w500,
+                          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -713,7 +730,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       } catch (_) {}
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) onBack();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFF0B1118),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0B1118),
@@ -767,7 +789,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildCategoryList() {
@@ -851,17 +873,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
         itemCount: channels.length,
         itemBuilder: (ctx, i) {
-          if (isLive) return _buildLiveChannelCard(channels[i]);
-          if (isSeries) return _buildSeriesCard(channels[i]);
-          return _buildVodCard(channels[i]);
+          if (isLive) return _buildLiveChannelCard(channels[i], autofocus: i == 0);
+          if (isSeries) return _buildSeriesCard(channels[i], autofocus: i == 0);
+          return _buildVodCard(channels[i], autofocus: i == 0);
         },
       ),
     );
   }
 
-  Widget _buildLiveChannelCard(Channel channel) {
+  Widget _buildLiveChannelCard(Channel channel, {bool autofocus = false}) {
     final isFav = _favoriteUrls.contains(channel.url);
     return FocusableActionDetector(
+      autofocus: autofocus,
       actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _onChannelTap(channel))},
       child: Builder(builder: (ctx) {
         final focused = Focus.of(ctx).hasFocus;
@@ -1002,9 +1025,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildVodCard(Channel channel) {
+  Widget _buildVodCard(Channel channel, {bool autofocus = false}) {
     final isFav = _favoriteUrls.contains(channel.url);
     return FocusableActionDetector(
+      autofocus: autofocus,
       actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _onChannelTap(channel))},
       child: Builder(builder: (ctx) {
         final focused = Focus.of(ctx).hasFocus;
@@ -1089,8 +1113,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildSeriesCard(Channel channel) {
+  Widget _buildSeriesCard(Channel channel, {bool autofocus = false}) {
     return FocusableActionDetector(
+      autofocus: autofocus,
       actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _onChannelTap(channel))},
       child: Builder(builder: (ctx) {
         final focused = Focus.of(ctx).hasFocus;
