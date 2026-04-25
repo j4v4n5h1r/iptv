@@ -89,6 +89,7 @@ class _RecentsScreenState extends State<RecentsScreen> {
                       final focusNode = FocusNode();
                       return Focus(
                         focusNode: focusNode,
+                        autofocus: i == 0,
                         onKeyEvent: (node, event) {
                           if (event is KeyDownEvent &&
                               (event.logicalKey == LogicalKeyboardKey.select ||

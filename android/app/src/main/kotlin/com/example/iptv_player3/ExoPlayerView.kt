@@ -6,6 +6,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import io.flutter.plugin.common.BinaryMessenger
@@ -32,7 +33,10 @@ class ExoPlayerView(
             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
 
-        player = ExoPlayer.Builder(context)
+        val renderersFactory = DefaultRenderersFactory(context)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+
+        player = ExoPlayer.Builder(context, renderersFactory)
             .setAudioAttributes(audioAttr, true)
             .build()
             .also { exo ->

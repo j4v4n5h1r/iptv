@@ -158,7 +158,12 @@ class _EpgScreenState extends State<EpgScreen> {
                             final p = _dayPrograms[i];
                             final isNow = p.isNow;
                             final isPast = p.end.isBefore(DateTime.now());
-                            return InkWell(
+                            return FocusableActionDetector(
+                              autofocus: i == 0,
+                              actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) { if (isPast) _playCatchup(p); return null; })},
+                              child: Builder(builder: (bctx) {
+                                final focused = Focus.of(bctx).hasFocus;
+                                return GestureDetector(
                               onTap: isPast ? () => _playCatchup(p) : null,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -166,9 +171,10 @@ class _EpgScreenState extends State<EpgScreen> {
                                 decoration: BoxDecoration(
                                   color: isNow
                                       ? Colors.deepOrange.withValues(alpha: 0.15)
-                                      : Colors.transparent,
-                                  border: const Border(
-                                      bottom: BorderSide(color: Colors.white10)),
+                                      : focused ? Colors.white.withValues(alpha: 0.08) : Colors.transparent,
+                                  border: Border(
+                                      left: focused ? const BorderSide(color: Colors.white70, width: 3) : BorderSide.none,
+                                      bottom: const BorderSide(color: Colors.white10)),
                                 ),
                                 child: Row(
                                   children: [
@@ -255,6 +261,8 @@ class _EpgScreenState extends State<EpgScreen> {
                                   ],
                                 ),
                               ),
+                                );
+                              }),
                             );
                           },
                         ),

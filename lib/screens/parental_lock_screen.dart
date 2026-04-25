@@ -72,58 +72,61 @@ class _ParentalLockScreenState extends State<ParentalLockScreen> {
                                 : 'Series';
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 6),
-                          child: Material(
-                            color: isLocked
-                                ? Colors.deepOrange.withValues(alpha: 0.12)
-                                : const Color(0xFF1A1A2E),
-                            borderRadius: BorderRadius.circular(8),
-                            child: InkWell(
-                              onTap: () => settings.toggleLockedCategory(cat.id),
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: isLocked ? Colors.deepOrange : Colors.white12,
+                          child: FocusableActionDetector(
+                            autofocus: i == 0,
+                            actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => settings.toggleLockedCategory(cat.id))},
+                            child: Builder(builder: (ctx) {
+                              final focused = Focus.of(ctx).hasFocus;
+                              return GestureDetector(
+                                onTap: () => settings.toggleLockedCategory(cat.id),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 100),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isLocked ? Colors.deepOrange.withValues(alpha: 0.12) : const Color(0xFF1A1A2E),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: focused ? Colors.white.withValues(alpha: 0.9) : (isLocked ? Colors.deepOrange : Colors.white12),
+                                      width: focused ? 2 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isLocked ? Icons.lock : Icons.lock_open,
+                                        color: isLocked ? Colors.deepOrange : Colors.white38,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              cat.name,
+                                              style: TextStyle(
+                                                color: isLocked ? Colors.white : Colors.white70,
+                                                fontSize: 14,
+                                                fontWeight: isLocked ? FontWeight.w600 : FontWeight.normal,
+                                              ),
+                                            ),
+                                            Text(
+                                              typeLabel,
+                                              style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Switch(
+                                        value: isLocked,
+                                        activeThumbColor: Colors.deepOrange,
+                                        onChanged: (_) => settings.toggleLockedCategory(cat.id),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      isLocked ? Icons.lock : Icons.lock_open,
-                                      color: isLocked ? Colors.deepOrange : Colors.white38,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            cat.name,
-                                            style: TextStyle(
-                                              color: isLocked ? Colors.white : Colors.white70,
-                                              fontSize: 14,
-                                              fontWeight: isLocked ? FontWeight.w600 : FontWeight.normal,
-                                            ),
-                                          ),
-                                          Text(
-                                            typeLabel,
-                                            style: const TextStyle(color: Colors.white38, fontSize: 11),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Switch(
-                                      value: isLocked,
-                                      activeThumbColor: Colors.deepOrange,
-                                      onChanged: (_) => settings.toggleLockedCategory(cat.id),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                              );
+                            }),
                           ),
                         );
                       },

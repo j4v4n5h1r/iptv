@@ -120,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
         actions: [
           TextButton(
+            autofocus: true,
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Later', style: TextStyle(color: Colors.white54)),
           ),
@@ -315,6 +316,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
         actions: [
           TextButton(
+            autofocus: true,
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
           TextButton(

@@ -135,6 +135,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
             content: Text(auth.notificationContent ?? '', style: const TextStyle(color: Colors.white70)),
             actions: [
               TextButton(
+                autofocus: true,
                 onPressed: () => Navigator.pop(context),
                 child: const Text('OK', style: TextStyle(color: _kBlue)),
               ),

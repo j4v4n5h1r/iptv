@@ -28,6 +28,8 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
+  MethodChannel? _channel;
+
   late Channel _currentChannel;
   int _currentChannelIndex = -1;
 
@@ -43,7 +45,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
 
-  MethodChannel? _playerChannel;
   Timer? _hideControlsTimer;
   Timer? _osdTimer;
   Timer? _positionTimer;
@@ -71,21 +72,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return settings.resolveStreamUrl(url);
   }
 
-  void _onPlatformViewCreated(int viewId) {
-    _playerChannel = MethodChannel('com.wallyt.iptv/exoplayer_$viewId');
-    _playerChannel!.setMethodCallHandler(_onPlayerEvent);
+  void _onPlatformViewCreated(int id) {
+    _channel = MethodChannel('com.wallyt.iptv/exoplayer_$id');
+    _channel!.setMethodCallHandler(_onNativeCall);
     _loadUrl(_currentChannel.url);
 
     if (widget.isMovie) {
       _positionTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-        if (!mounted || _isScrubbing) return;
+        if (!mounted || _isScrubbing || _channel == null) return;
         try {
-          final pos = await _playerChannel?.invokeMethod<int>('getPosition') ?? 0;
-          final dur = await _playerChannel?.invokeMethod<int>('getDuration') ?? 0;
+          final pos = await _channel!.invokeMethod<int>('getPosition') ?? 0;
+          final dur = await _channel!.invokeMethod<int>('getDuration') ?? 0;
           if (mounted) {
             setState(() {
               _position = Duration(milliseconds: pos);
-              if (dur > 0) _duration = Duration(milliseconds: dur);
+              _duration = Duration(milliseconds: dur < 0 ? 0 : dur);
             });
           }
         } catch (_) {}
@@ -93,15 +94,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  Future<dynamic> _onPlayerEvent(MethodCall call) async {
+  Future<dynamic> _onNativeCall(MethodCall call) async {
     switch (call.method) {
       case 'onState':
-        final state = call.arguments['state'] as String?;
-        if (mounted) {
-          setState(() {
-            _isBuffering = state == 'buffering';
-          });
-        }
+        final state = call.arguments['state'] as String? ?? '';
+        if (mounted) setState(() => _isBuffering = state == 'buffering' || state == 'idle');
         break;
       case 'onPlaying':
         final playing = call.arguments['playing'] as bool? ?? false;
@@ -112,8 +109,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _loadUrl(String url) {
     final resolved = _resolveUrl(url);
-    _playerChannel?.invokeMethod('load', {'url': resolved});
-    setState(() { _isBuffering = true; });
+    _channel?.invokeMethod('load', {'url': resolved});
+    setState(() { _isBuffering = true; _isPlaying = false; });
   }
 
   void _changeChannel(Channel channel) {
@@ -164,11 +161,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _playOrPause() {
     if (_isPlaying) {
-      _playerChannel?.invokeMethod('pause');
+      _channel?.invokeMethod('pause');
     } else {
-      _playerChannel?.invokeMethod('play');
+      _channel?.invokeMethod('play');
     }
-    setState(() {});
   }
 
   void _startTimeshift() {
@@ -250,8 +246,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _hideControlsTimer?.cancel();
     _osdTimer?.cancel();
     _positionTimer?.cancel();
-    _playerChannel?.invokeMethod('dispose');
-    _playerChannel?.setMethodCallHandler(null);
+    if (_channel != null) {
+      _channel!.invokeMethod('dispose').catchError((_) {});
+      _channel!.setMethodCallHandler(null);
+    }
     _playerFocusNode.dispose();
     _backFocus.dispose();
     _epgFocus.dispose();
@@ -283,7 +281,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
               ),
 
-              // Buffering indicator
+              // Buffering
               if (_isBuffering)
                 const Center(
                   child: CircularProgressIndicator(color: Color(0xFF60A5FA)),
@@ -381,8 +379,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildControlBtn(Icons.fast_rewind, () async {
-                  final pos = await _playerChannel?.invokeMethod<int>('getPosition') ?? 0;
-                  _playerChannel?.invokeMethod('seekTo', {'ms': (pos - 10000).clamp(0, 999999999)});
+                  final pos = await _channel?.invokeMethod<int>('getPosition') ?? 0;
+                  _channel?.invokeMethod('seekTo', {'ms': (pos - 10000).clamp(0, 999999999)});
                 }, focusNode: _rewindFocus),
                 const SizedBox(width: 24),
                 _buildControlBtn(
@@ -393,8 +391,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 const SizedBox(width: 24),
                 _buildControlBtn(Icons.fast_forward, () async {
-                  final pos = await _playerChannel?.invokeMethod<int>('getPosition') ?? 0;
-                  _playerChannel?.invokeMethod('seekTo', {'ms': pos + 10000});
+                  final pos = await _channel?.invokeMethod<int>('getPosition') ?? 0;
+                  _channel?.invokeMethod('seekTo', {'ms': pos + 10000});
                 }, focusNode: _fwdFocus),
               ],
             ),
@@ -551,8 +549,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 onChanged: (v) => setState(() => _scrubValue = v),
                 onChangeEnd: (v) {
                   if (dur.inMilliseconds > 0) {
-                    final ms = (v * dur.inMilliseconds).toInt();
-                    _playerChannel?.invokeMethod('seekTo', {'ms': ms});
+                    _channel?.invokeMethod('seekTo', {'ms': (v * dur.inMilliseconds).toInt()});
                   }
                   _isScrubbing = false;
                   _resetHideTimer();

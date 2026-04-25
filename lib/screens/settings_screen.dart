@@ -188,6 +188,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
+            autofocus: true,
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
           TextButton(
@@ -229,6 +230,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         actions: [
           TextButton(
+            autofocus: true,
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Later', style: TextStyle(color: Colors.white54))),
           TextButton(
@@ -421,6 +423,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _langOption(AppSettings s, String code, String label, BuildContext dialogCtx) {
     final selected = s.language == code;
     return InkWell(
+      autofocus: selected,
       onTap: () { s.setLanguage(code); Navigator.pop(dialogCtx); },
       borderRadius: BorderRadius.circular(8),
       child: Container(
@@ -453,6 +456,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: modes.map((m) {
             final selected = s.streamMode == m;
             return InkWell(
+              autofocus: selected,
               onTap: () { s.setStreamMode(m); Navigator.pop(context); },
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
@@ -488,6 +492,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: values.map((v) {
             final selected = s.bufferSeconds == v;
             return InkWell(
+              autofocus: selected,
               onTap: () { s.setBufferSeconds(v); Navigator.pop(context); },
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),

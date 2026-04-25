@@ -59,7 +59,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         content: const Text('Playlist cache and channel data will be deleted. Login info will not be affected.',
             style: TextStyle(color: Color(0xFFF5E6D0))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false),
+          TextButton(autofocus: true, onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel', style: TextStyle(color: Color(0xFFF5E6D0)))),
           TextButton(onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Clear', style: TextStyle(color: Colors.red))),
@@ -84,7 +84,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: const Text('Logout', style: TextStyle(color: Color(0xFFF5E6D0))),
         content: const Text('Are you sure?', style: TextStyle(color: Color(0xFFF5E6D0))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false),
+          TextButton(autofocus: true, onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel', style: TextStyle(color: Color(0xFFF5E6D0)))),
           TextButton(onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Logout', style: TextStyle(color: Colors.white))),

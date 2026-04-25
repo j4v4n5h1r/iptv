@@ -116,6 +116,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> with SingleTickerProv
           ),
           actions: [
             TextButton(
+              autofocus: true,
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
             ),
