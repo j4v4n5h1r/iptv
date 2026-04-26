@@ -272,7 +272,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           onTap: _toggleControls,
           child: Stack(
             children: [
-              // Native ExoPlayer surface
               Positioned.fill(
                 child: AndroidView(
                   viewType: 'com.wallyt.iptv/exoplayer_view',
@@ -281,7 +280,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
               ),
 
-              // Buffering
               if (_isBuffering)
                 const Center(
                   child: CircularProgressIndicator(color: Color(0xFF60A5FA)),

@@ -31,10 +31,10 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        // Native ExoPlayer PlatformView
+        // Native IjkPlayer PlatformView (FFmpeg-based, AC3/EAC3 support)
         flutterEngine.platformViewsController.registry.registerViewFactory(
             "com.wallyt.iptv/exoplayer_view",
-            ExoPlayerViewFactory(flutterEngine.dartExecutor.binaryMessenger)
+            IjkPlayerViewFactory(flutterEngine.dartExecutor.binaryMessenger)
         )
     }
 }
