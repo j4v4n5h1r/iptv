@@ -8,6 +8,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.AudioCapabilities
 import androidx.media3.ui.PlayerView
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -15,7 +17,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
 
 class ExoPlayerView(
-    context: Context,
+    private val context: Context,
     messenger: BinaryMessenger,
     viewId: Int,
 ) : PlatformView, MethodChannel.MethodCallHandler {
@@ -33,8 +35,16 @@ class ExoPlayerView(
             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
 
+        // Enable AC3/EAC3 passthrough — FireStick hardware Dolby decoder
+        val audioSink = DefaultAudioSink.Builder(context)
+            .setAudioCapabilities(AudioCapabilities.getCapabilities(context))
+            .setEnableFloatOutput(false)
+            .setEnableAudioTrackPlaybackParams(true)
+            .build()
+
         val renderersFactory = DefaultRenderersFactory(context)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            .setEnableDecoderFallback(true)
 
         player = ExoPlayer.Builder(context, renderersFactory)
             .setAudioAttributes(audioAttr, true)
@@ -70,6 +80,7 @@ class ExoPlayerView(
             "load" -> {
                 val url = call.argument<String>("url") ?: run { result.error("NO_URL","",null); return }
                 exo.stop()
+                exo.clearMediaItems()
                 exo.setMediaItem(MediaItem.fromUri(url))
                 exo.prepare()
                 exo.playWhenReady = true
