@@ -1,8 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../widgets/channel_list_overlay.dart';
@@ -276,26 +273,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
           child: Stack(
             children: [
               Positioned.fill(
-                child: PlatformViewLink(
+                child: AndroidView(
                   viewType: 'com.wallyt.iptv/exoplayer_view',
-                  surfaceFactory: (context, controller) => AndroidViewSurface(
-                    controller: controller as AndroidViewController,
-                    gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
-                    hitTestBehavior: PlatformViewHitTestBehavior.opaque,
-                  ),
-                  onCreatePlatformView: (params) {
-                    final controller = PlatformViewsService.initExpensiveAndroidView(
-                      id: params.id,
-                      viewType: params.viewType,
-                      layoutDirection: TextDirection.ltr,
-                      onFocus: () => params.onFocusChanged(true),
-                    );
-                    controller
-                      ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
-                      ..addOnPlatformViewCreatedListener(_onPlatformViewCreated)
-                      ..create();
-                    return controller;
-                  },
+                  onPlatformViewCreated: _onPlatformViewCreated,
+                  creationParamsCodec: const StandardMessageCodec(),
                 ),
               ),
 
